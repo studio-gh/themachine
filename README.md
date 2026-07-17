@@ -30,20 +30,6 @@ Força Concomitante (Balsalobre-Fernández, 2016): Treinamento resistido focado 
 
 Se você deseja executar o projeto em sua máquina local para testes ou desenvolvimento:
 
-Clone o repositório:
-
-git clone [https://github.com/seu-usuario/ritmo-folego.git](https://github.com/seu-usuario/ritmo-folego.git)
-
-
-Instale as dependências:
-
-npm install
-
-
-Inicie o servidor de desenvolvimento:
-
-npm run dev
-
 
 🚀 Publicação & Deploy
 
