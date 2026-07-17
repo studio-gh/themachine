@@ -1,6 +1,6 @@
-🏃‍♂️ Ritmo & Fôlego (v5.0) — Rumo à Meia Maratona do Rio 2027
+🏃‍♂️ The Machine (v5.0) — Rumo à Meia Maratona do Rio 2027
 
-Este é o repositório do Ritmo & Fôlego, um aplicativo web interativo de alta performance focado em corrida de rua de fundo e treinamento de força concomitante, projetado sob medida para um atleta de 41 anos, pai ativo e praticante diário de Yoga.
+Este é o repositório do The Machine, um aplicativo web interativo de alta performance focado em corrida de rua de fundo e treinamento de força concomitante, projetado sob medida para um atleta de 41 anos, pai ativo e praticante diário de Yoga.
 
 O objetivo final do planejamento tático contido neste software é a conclusão e excelente performance na Meia Maratona do Rio de Janeiro em Maio de 2027.
 
