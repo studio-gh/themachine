@@ -662,8 +662,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased px-4 py-6 flex flex-col items-center gap-6 md:flex-row md:items-start md:justify-center">
-      <div className="w-full max-w-[1120px] mx-auto flex flex-col items-center gap-6 md:flex-row md:items-start md:justify-center">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased px-4 py-8 flex flex-col items-center gap-10 md:flex-row md:items-start md:justify-center">
+      <div className="w-full max-w-[1180px] mx-auto flex flex-col items-center gap-8 md:flex-row md:items-start md:justify-center">
       
       {/* Banner de Notificação Personalizada */}
       {notificacao && (
@@ -700,7 +700,7 @@ export default function App() {
         </div>
 
         {/* CARD DIÁRIO DO CO-PROCESSO YOGA (20-25 minutos) */}
-        <div className="p-4 bg-gradient-to-r from-indigo-950/80 to-slate-950/40 border-b border-indigo-900/30 backdrop-blur-xl">
+        <div className="p-5 bg-gradient-to-r from-indigo-950/70 via-slate-950 to-emerald-950/30 border border-slate-800/50 rounded-[28px] backdrop-blur-2xl shadow-xl">
           <div className="flex items-start justify-between gap-4">
             <div className="flex gap-3">
               <div className="p-3 rounded-xl bg-indigo-500/20 text-indigo-400 flex-shrink-0">
@@ -739,7 +739,7 @@ export default function App() {
         </div>
 
         {/* NAVEGAÇÃO DOS SEPARADORES NO CELULAR */}
-        <div className="grid grid-cols-4 bg-slate-950/95 p-2 gap-2 border-b border-slate-800/70">
+        <div className="grid grid-cols-4 bg-slate-950/95 p-3 gap-3 border-b border-slate-800/70 rounded-3xl shadow-inner shadow-slate-950/10">
           <button
             onClick={() => setSeparadorAtivo('treinos')}
             className={`py-2 px-1 text-center rounded-lg flex flex-col items-center justify-center gap-1 transition-all ${
@@ -783,7 +783,7 @@ export default function App() {
         </div>
 
         {/* ÁREA DE CONTEÚDO SCROLL DO CELULAR */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5 max-h-[calc(100vh-240px)] md:max-h-[none]">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 max-h-[calc(100vh-240px)] md:max-h-[none]">
           
           {carregandoDados ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -830,7 +830,7 @@ export default function App() {
                       return (
                         <div 
                           key={treino.id}
-                          className={`p-3.5 rounded-xl border transition-all ${
+                          className={`p-4 rounded-3xl border transition-all duration-300 ease-out shadow-sm hover:-translate-y-0.5 ${
                             concluido 
                               ? 'bg-slate-950/60 border-emerald-500/40 text-slate-300' 
                               : 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
@@ -1150,7 +1150,7 @@ export default function App() {
                       disabled={!novaMensagem.trim() || chatEnviando}
                       className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white transition-all flex items-center justify-center"
                     >
-                      <Send className="w-4.5 h-4.5" />
+                      <Send className="w-5 h-5" />
                     </button>
                   </div>
 
@@ -1166,7 +1166,7 @@ export default function App() {
       <div className="flex-1 bg-slate-950 p-6 space-y-6 overflow-y-auto hidden md:block">
         
         {/* Banner do Coach e Sincronização */}
-        <div className="bg-gradient-to-r from-slate-900 to-indigo-950/40 border border-indigo-900/40 rounded-3xl p-6 relative overflow-hidden">
+        <div className="bg-gradient-to-r from-slate-900/80 via-slate-950 to-indigo-950/60 border border-indigo-900/30 rounded-[36px] p-7 relative overflow-hidden shadow-2xl shadow-indigo-950/20">
           <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl -z-10"></div>
           
           <div className="flex items-center justify-between">
@@ -1296,7 +1296,7 @@ export default function App() {
             <div className="grid grid-cols-2 gap-2 pt-2">
               <button 
                 onClick={() => setMostrarModalConexao(null)}
-                className="py-2.5 px-4 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-755 text-xs text-center"
+                className="py-2.5 px-4 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 text-xs text-center transition-colors duration-200"
               >
                 Cancelar
               </button>
