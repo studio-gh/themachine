@@ -51,6 +51,35 @@ const rawAppId = typeof __app_id !== 'undefined' ? __app_id : (obterVariavelGlob
 const appId = rawAppId.replace(/\//g, '_');
 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : obterVariavelGlobal('__initial_auth_token');
 
+const obterApiKeyGemini = () => {
+  try {
+    if (typeof window !== 'undefined') {
+      const chaves = [
+        window.__gemini_api_key,
+        window.__GEMINI_API_KEY,
+        window.geminiApiKey
+      ];
+
+      for (const chave of chaves) {
+        if (typeof chave === 'string' && chave.trim()) {
+          return chave.trim();
+        }
+      }
+    }
+
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      const chaveEnv = import.meta.env.VITE_GEMINI_API_KEY;
+      if (typeof chaveEnv === 'string' && chaveEnv.trim()) {
+        return chaveEnv.trim();
+      }
+    }
+  } catch (e) {
+    console.warn('Não foi possível ler a chave do Gemini:', e);
+  }
+
+  return '';
+};
+
 let firebaseApp = null;
 let auth = null;
 let db = null;
@@ -181,6 +210,7 @@ export default function App() {
   // --- GESTÃO DE ESTADO DO FIREBASE E AUTENTICAÇÃO (REGRA 3) ---
   useEffect(() => {
     let unsubscribeAuth = () => {};
+    let unsubscribeFirestore = () => {};
 
     const inicializarAutenticacao = async () => {
       if (!firebaseAtivo || !auth) {
@@ -207,10 +237,12 @@ export default function App() {
 
     if (auth) {
       unsubscribeAuth = onAuthStateChanged(auth, (loggedUser) => {
+        unsubscribeFirestore();
+
         if (loggedUser) {
           setUser(loggedUser);
           setConexaoFirebase(true);
-          sincronizarComFirestore(loggedUser);
+          unsubscribeFirestore = sincronizarComFirestore(loggedUser) || (() => {});
         } else {
           setUser(null);
           carregarEstadoOffline();
@@ -219,7 +251,10 @@ export default function App() {
       });
     }
 
-    return () => unsubscribeAuth();
+    return () => {
+      unsubscribeAuth();
+      unsubscribeFirestore();
+    };
   }, []);
 
   // --- CARREGA SALVAMENTOS EM LOCAL STORAGE (MODO LOCAL) ---
@@ -521,7 +556,11 @@ export default function App() {
 
     // Implementação resiliente da chamada à API Gemini com Exponential Backoff (conforme diretrizes)
     const apiCallWithRetry = async (retryCount = 0) => {
-      const apiKey = ""; // A chave é injetada automaticamente em tempo de execução
+      const apiKey = obterApiKeyGemini();
+      if (!apiKey) {
+        throw new Error('Chave de API do Gemini não encontrada.');
+      }
+
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
       
       const payload = {
