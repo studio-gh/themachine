@@ -102,19 +102,19 @@ if (firebaseConfigRaw) {
 
 // Prompt do Sistema para o Treinador de Inteligência Artificial "The Machine"
 const PROMPT_SISTEMA_COACH = `
-És o "The Machine AI Coach", um treinador de corrida de elite de nível mundial, especializado em fisiologia do esforço e periodização desportiva de longo prazo.
-Deves responder sempre em Português de Portugal (PT-PT), utilizando termos como "utilizador", "telemóvel", "registo", "ecrã", "treinos", "corridas", "gémeos", "meia maratona".
+És o "The Machine AI Coach", um treinador de corrida de elite de nível mundial, especializado em fisiologia do esforço e periodização esportiva de longo prazo.
+Deves responder sempre em Português do Brasil (PT-BR), utilizando termos como "usuário", "celular", "registro", "tela", "treinos", "corridas", "meia maratona".
 O teu conhecimento científico baseia-se fortemente em:
 1. Treinamento Fartlek (Andres, 2024): A importância do jogo de velocidades, variação de intensidade, adaptações neuromusculares e aeróbias.
 2. Desenvolvimento de Atletas de Longo Prazo (Guilherme, 2004): O foco na base aeróbia (Zona 2) para expandir o leito capilar e mitocôndrias de forma segura, prevenindo lesões.
 3. Notação de Fisiologia Matemática: Usa LaTeX para fórmulas se falares sobre $VO_2\\max$, Limiar de Lactato, Economia de Corrida ($RE$), etc.
-4. Sincronização diária de Yoga: Apoia a realização de Yoga (20-25 min) para flexibilidade, mobilidade e recuperação activa das articulações.
+4. Sincronização diária de Yoga: Apoia a realização de Yoga (20-25 min) para flexibilidade, mobilidade e recuperação ativa das articulações.
 
-Responde de forma encorajadora, altamente técnica mas acessível, dando dicas de treino com base nas estatísticas de corrida do utilizador.
+Responde de forma encorajadora, altamente técnica mas acessível, dando dicas de treino com base nas estatísticas de corrida do usuário.
 `;
 
 export default function App() {
-  // --- ESTADOS DO UTILIZADOR E AUTENTICAÇÃO ---
+  // --- ESTADOS DO USUÁRIO E AUTENTICAÇÃO ---
   const [user, setUser] = useState(null);
   const [carregandoDados, setCarregandoDados] = useState(true);
   const [conexaoFirebase, setConexaoFirebase] = useState(firebaseAtivo);
@@ -134,10 +134,10 @@ export default function App() {
 
   // --- COGNITIVE CHAT STATE ("THE MACHINE") ---
   const [mensagensChat, setMensagensChat] = useState([
-    { 
-      id: "welcome", 
-      sender: "coach", 
-      text: "Olá! Sou o **The Machine AI Coach**. Com base nos estudos de periodização de longo prazo e no treino Fartlek que submeteste, preparei o teu planeamento para a Meia Maratona (16 semanas). Como correu o teu dia de hoje? Fizeste a sessão de Yoga regenerativo de 20 minutos?" 
+    {
+      id: "welcome",
+      sender: "coach",
+      text: "Olá! Sou o **The Machine AI Coach**. Com base nos estudos de periodização de longo prazo e no treino Fartlek que você enviou, preparei seu plano para a meia maratona (16 semanas). Como foi o seu dia hoje? Você fez a sessão de Yoga regenerativo de 20 minutos?"
     }
   ]);
   const [novaMensagem, setNovaMensagem] = useState("");
@@ -149,7 +149,7 @@ export default function App() {
   const [samsungHealthConectado, setSamsungHealthConectado] = useState(false);
   const [mostrarModalConexao, setMostrarModalConexao] = useState(null); // 'strava', 'gfit', 'samsung'
   
-  // Toasts personalizados para ecrãs móveis
+  // Toasts personalizados para telas móveis
   const [notificacao, setNotificacao] = useState(null);
 
   const containerChatRef = useRef(null);
@@ -268,7 +268,7 @@ export default function App() {
       if (localYoga) setYogaCompletoHoje(JSON.parse(localYoga) === true);
       if (localActivities) setAtividadesImportadas(JSON.parse(localActivities));
       
-      console.log("Estado de dados locais carregado com sucesso do armazenamento local do telemóvel.");
+      console.log("Estado de dados locais carregado com sucesso do armazenamento local do celular.");
     } catch (e) {
       console.error("Erro ao ler armazenamento local:", e);
     }
@@ -322,7 +322,7 @@ export default function App() {
     localStorage.setItem('run_cover_yoga', JSON.stringify(yoga));
     localStorage.setItem('run_cover_activities', JSON.stringify(atividades));
 
-    // Se houver Firebase ativo, persiste na Cloud do utilizador (REGRA 1)
+    // Se houver Firebase ativo, persiste na Cloud do usuário (REGRA 1)
     if (db && user) {
       try {
         const docRefAtletas = doc(db, 'artifacts', appId, 'users', user.uid, 'dados_treinamento', 'progresso');
@@ -347,7 +347,7 @@ export default function App() {
       let fartlekReps = 5 + Math.floor(w / 3);
       let tempoDist = 4 + Math.floor(w * 0.4);
 
-      // Definição de Fases baseadas nos uploads científicos do utilizador
+      // Definição de Fases baseadas nos uploads científicos do usuário
       if (w <= 4) {
         fase = "Fase 1: Adaptação Muscular e Base Aeróbia (Guilherme, 2004)";
         if (w === 4) { fase = "Fase 1: Semana de Recuperação Ativa"; longDist = 6; tempoDist = 4; }
@@ -439,7 +439,7 @@ export default function App() {
 
   const fisiologia = calcularMetricasFisiologicas();
 
-  // --- MOTOR DE IMPORTAÇÃO DE FICHEIROS CSV (Atividades do Strava) ---
+  // --- MOTOR DE IMPORTAÇÃO DE ARQUIVOS CSV (Atividades do Strava) ---
   const processarUploadCSV = (evento) => {
     const file = evento.target.files[0];
     if (!file) return;
@@ -450,7 +450,7 @@ export default function App() {
       const linhas = conteudo.split('\n').map(l => l.trim()).filter(l => l.length > 0);
       
       if (linhas.length < 2) {
-        exibirNotificacao("Ficheiro CSV vazio ou inválido.", "error");
+        exibirNotificacao("Arquivo CSV vazio ou inválido.", "error");
         return;
       }
 
@@ -472,7 +472,7 @@ export default function App() {
         });
 
         // Tenta capturar dados úteis da atividade do Strava
-        const dataOriginal = dadosAtividade['Activity Date'] || dadosAtividade['Start Time'] || new Date().toLocaleDateString('pt-PT');
+        const dataOriginal = dadosAtividade['Activity Date'] || dadosAtividade['Start Time'] || new Date().toLocaleDateString('pt-BR');
         const distanciaMetros = parseFloat(dadosAtividade['Distance'] || 0);
         const distanciaKm = distanciaMetros > 100 ? (distanciaMetros / 1000).toFixed(2) : parseFloat(dadosAtividade['Distance'] || 0).toFixed(2);
         const tempoSegundos = parseInt(dadosAtividade['Elapsed Time'] || dadosAtividade['Moving Time'] || 0);
@@ -503,11 +503,11 @@ export default function App() {
           {
             id: `system_import_${Date.now()}`,
             sender: "coach",
-            text: `Perfeito! Analisei as tuas atividades importadas do Strava (total de **${novasAtividades.length}** registos). Detetei uma distância média de corrida de **${novasAtividades[0].distancia} km**. Isto confirma que a tua base metabólica está pronta para começarmos a intensificar os treinos de terças-feiras utilizando a metodologia Fartlek (Andres, 2024). Mantém o foco no volume controlado de fim de semana!`
+            text: `Perfeito! Analisei as suas atividades importadas do Strava (total de **${novasAtividades.length}** registros). Detectei uma distância média de corrida de **${novasAtividades[0].distancia} km**. Isso confirma que sua base metabólica está pronta para começarmos a intensificar os treinos de terças-feiras utilizando a metodologia Fartlek (Andres, 2024). Mantenha o foco no volume controlado de fim de semana!`
           }
         ]);
       } else {
-        exibirNotificacao("Nenhuma atividade do tipo Corrida ('Run') encontrada no ficheiro.", "error");
+        exibirNotificacao("Nenhuma atividade do tipo Corrida ('Run') encontrada no arquivo.", "error");
       }
     };
 
@@ -522,10 +522,10 @@ export default function App() {
     setNovaMensagem("");
     setChatEnviando(true);
 
-    const idMensagemUtilizador = `user_${Date.now()}`;
+    const idMensagemUsuario = `user_${Date.now()}`;
     const novasMensagens = [
       ...mensagensChat,
-      { id: idMensagemUtilizador, sender: "user", text: messageToSubmit }
+      { id: idMensagemUsuario, sender: "user", text: messageToSubmit }
     ];
     setMensagensChat(novasMensagens);
 
@@ -542,16 +542,16 @@ export default function App() {
     const progressoPercentagem = ((treinosConcluidosNum / totalTreinosDisponiveis) * 100).toFixed(0);
 
     const queryFisiologica = `
-    O utilizador tem atualmente:
+    O usuário tem atualmente:
     - Idade: ${idade} anos
     - Frequência Cardíaca de Repouso: ${fcRepouso} bpm
     - Frequência Cardíaca Máxima: ${fcMaxima} bpm
     - VO2 Max estimado de base: ${fisiologia.vo2maxUth} ml/kg/min (Karvonen)
     - Conclusão do plano de Meia Maratona: ${progressoPercentagem}% concluído (${treinosConcluidosNum} de ${totalTreinosDisponiveis} treinos)
     - Sincronização diária de Yoga: ${yogaCompletoHoje ? "EFETUADO HOJE" : "Pendente hoje"}
-    - Atividades Strava importadas: ${atividadesImportadas.length} corridas guardadas no telemóvel.
+    - Atividades Strava importadas: ${atividadesImportadas.length} corridas guardadas no celular.
 
-    Questão do Utilizador: ${messageToSubmit}
+    Questão do Usuário: ${messageToSubmit}
     `;
 
     // Implementação resiliente da chamada à API Gemini com Exponential Backoff (conforme diretrizes)
@@ -615,7 +615,7 @@ export default function App() {
         { 
           id: `coach_err_${Date.now()}`, 
           sender: "coach", 
-          text: "Estou com dificuldades de comunicação com os satélites de fisiologia desportiva de momento. No entanto, com base no estudo de Andres (2024), lembra-te que os treinos Fartlek requerem variação ativa de intensidade e o teu Yoga diário é fundamental para estabilizar os flexores da anca!" 
+          text: "Estou com dificuldades de comunicação com os satélites de fisiologia esportiva no momento. No entanto, com base no estudo de Andres (2024), lembre-se de que os treinos Fartlek requerem variação ativa de intensidade e o seu Yoga diário é fundamental para estabilizar os flexores do quadril!"
         }
       ]);
     } finally {
@@ -676,16 +676,16 @@ export default function App() {
         </div>
       )}
 
-      {/* PAINEL LATERAL ESQUERDO: DISPOSITIVO MÓVEL EM ECRÃ INTEIRO NO TELEMÓVEL */}
+      {/* PAINEL LATERAL ESQUERDO: DISPOSITIVO MÓVEL EM TELA INTEIRA NO CELULAR */}
       <div className="w-full max-w-[480px] md:w-[440px] border border-slate-800/80 bg-slate-900/95 shadow-2xl shadow-slate-950/40 rounded-[36px] overflow-hidden ring-1 ring-slate-800/60 backdrop-blur-xl flex flex-col flex-shrink-0">
         
-        {/* Topo do Telemóvel */}
+        {/* Topo do Celular */}
         <div className="p-4 bg-slate-950/95 border-b border-slate-800/70 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
             <div>
               <h1 className="font-bold tracking-tight text-md">RUN FOR COVER</h1>
-              <p className="text-xs text-slate-400">Telemóvel Ativo • Meia Maratona</p>
+              <p className="text-xs text-slate-400">Celular Ativo • Meia Maratona</p>
             </div>
           </div>
           
@@ -738,7 +738,7 @@ export default function App() {
           )}
         </div>
 
-        {/* NAVEGAÇÃO DOS SEPARADORES NO TELEMÓVEL */}
+        {/* NAVEGAÇÃO DOS SEPARADORES NO CELULAR */}
         <div className="grid grid-cols-4 bg-slate-950/95 p-2 gap-2 border-b border-slate-800/70">
           <button
             onClick={() => setSeparadorAtivo('treinos')}
@@ -782,7 +782,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* ÁREA DE CONTEÚDO SCROLL DO TELEMÓVEL */}
+        {/* ÁREA DE CONTEÚDO SCROLL DO CELULAR */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5 max-h-[calc(100vh-240px)] md:max-h-[none]">
           
           {carregandoDados ? (
@@ -881,7 +881,7 @@ export default function App() {
                 <div className="space-y-4">
                   <div>
                     <h2 className="text-lg font-bold text-slate-100">Calculadora Científica</h2>
-                    <p className="text-xs text-slate-400">Estudos de Fisiologia Desportiva Aplicada</p>
+                    <p className="text-xs text-slate-400">Estudos de Fisiologia Esportiva Aplicada</p>
                   </div>
 
                   {/* Formulário de Input Fisiológico */}
@@ -983,7 +983,7 @@ export default function App() {
                 <div className="space-y-4">
                   <div>
                     <h2 className="text-lg font-bold text-slate-100">Upload & Integrações</h2>
-                    <p className="text-xs text-slate-400">Importar ficheiro Strava (Planilha) ou Ligar APIs</p>
+                    <p className="text-xs text-slate-400">Importar arquivo Strava (Planilha) ou Ligar APIs</p>
                   </div>
 
                   {/* Upload CSV real */}
@@ -1174,7 +1174,7 @@ export default function App() {
               <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest bg-indigo-900/30 px-3 py-1 rounded-full border border-indigo-500/20">
                 Meia Maratona 2027
               </span>
-              <h2 className="text-2xl font-black text-slate-50 tracking-tight">Ecrã Científico do Atleta</h2>
+              <h2 className="text-2xl font-black text-slate-50 tracking-tight">Tela Científica do Atleta</h2>
               <p className="text-slate-400 text-sm max-w-xl">
                 O teu planeamento dinâmico integra as descobertas de <strong>Andres (2024)</strong> sobre a eficiência mecânica e variação neuromuscular do Fartlek, em conjunto com as diretrizes de capilarização muscular de longo prazo de <strong>Guilherme (2004)</strong>.
               </p>
@@ -1202,7 +1202,7 @@ export default function App() {
               <h3 className="font-bold text-sm text-slate-100">Fartlek Sueco Adaptado (Andres, 2024)</h3>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              O estudo científico demonstra que a alternância ativa de intensidades metabólicas acima e abaixo do limiar anaeróbio acelera a remoção de lactato sanguíneo, otimizando o ecrã cardiorrespiratório e expandindo a tua velocidade de cruzeiro para a Meia Maratona.
+              O estudo científico demonstra que a alternância ativa de intensidades metabólicas acima e abaixo do limiar anaeróbio acelera a remoção de lactato sanguíneo, otimizando a tela cardiorrespiratória e expandindo a tua velocidade de cruzeiro para a meia maratona.
             </p>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/40 text-xs">
               <p className="font-semibold text-slate-300">Regras de Aplicação:</p>
@@ -1283,12 +1283,12 @@ export default function App() {
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
-              Ao clicares em autorizar, esta aplicação do teu telemóvel irá ler com segurança o histórico de corridas passadas de forma a calibrar automaticamente os limiares de esforço do teu ecrã de treino e a IA do **The Machine**.
+              Ao clicar em autorizar, este aplicativo no seu celular irá ler com segurança o histórico de corridas passadas de forma a calibrar automaticamente os limiares de esforço da sua tela de treino e a IA do **The Machine**.
             </p>
 
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-850/60 text-[11px] text-slate-400 space-y-1.5">
               <p className="font-semibold text-slate-300">Permissões Pedidas:</p>
-              <p>✔ Leitura do perfil de utilizador de corrida</p>
+              <p>✔ Leitura do perfil de usuário de corrida</p>
               <p>✔ Leitura de frequência cardíaca e zonas</p>
               <p>✔ Leitura de rotas de GPS e tempos</p>
             </div>
@@ -1311,6 +1311,7 @@ export default function App() {
         </div>
       )}
 
+      </div>
     </div>
   );
 }
