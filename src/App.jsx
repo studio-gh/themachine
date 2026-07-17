@@ -662,7 +662,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased flex flex-col md:flex-row">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased px-4 py-6 flex flex-col items-center gap-6 md:flex-row md:items-start md:justify-center">
+      <div className="w-full max-w-[1120px] mx-auto flex flex-col items-center gap-6 md:flex-row md:items-start md:justify-center">
       
       {/* Banner de Notificação Personalizada */}
       {notificacao && (
@@ -676,10 +677,10 @@ export default function App() {
       )}
 
       {/* PAINEL LATERAL ESQUERDO: DISPOSITIVO MÓVEL EM ECRÃ INTEIRO NO TELEMÓVEL */}
-      <div className="w-full md:w-[440px] border-b md:border-b-0 md:border-r border-slate-800 bg-slate-900 flex flex-col flex-shrink-0">
+      <div className="w-full max-w-[480px] md:w-[440px] border border-slate-800/80 bg-slate-900/95 shadow-2xl shadow-slate-950/40 rounded-[36px] overflow-hidden ring-1 ring-slate-800/60 backdrop-blur-xl flex flex-col flex-shrink-0">
         
         {/* Topo do Telemóvel */}
-        <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 bg-slate-950/95 border-b border-slate-800/70 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
             <div>
@@ -699,7 +700,7 @@ export default function App() {
         </div>
 
         {/* CARD DIÁRIO DO CO-PROCESSO YOGA (20-25 minutos) */}
-        <div className="p-4 bg-indigo-950/40 border-b border-indigo-900/30">
+        <div className="p-4 bg-gradient-to-r from-indigo-950/80 to-slate-950/40 border-b border-indigo-900/30 backdrop-blur-xl">
           <div className="flex items-start justify-between gap-4">
             <div className="flex gap-3">
               <div className="p-3 rounded-xl bg-indigo-500/20 text-indigo-400 flex-shrink-0">
@@ -738,7 +739,7 @@ export default function App() {
         </div>
 
         {/* NAVEGAÇÃO DOS SEPARADORES NO TELEMÓVEL */}
-        <div className="grid grid-cols-4 bg-slate-950 p-2 gap-1 border-b border-slate-800">
+        <div className="grid grid-cols-4 bg-slate-950/95 p-2 gap-2 border-b border-slate-800/70">
           <button
             onClick={() => setSeparadorAtivo('treinos')}
             className={`py-2 px-1 text-center rounded-lg flex flex-col items-center justify-center gap-1 transition-all ${
@@ -782,7 +783,7 @@ export default function App() {
         </div>
 
         {/* ÁREA DE CONTEÚDO SCROLL DO TELEMÓVEL */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[calc(100vh-230px)] md:max-h-[none]">
+        <div className="flex-1 overflow-y-auto p-5 space-y-5 max-h-[calc(100vh-240px)] md:max-h-[none]">
           
           {carregandoDados ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -804,11 +805,11 @@ export default function App() {
                   </div>
 
                   {/* Seleção deslizante de semanas */}
-                  <div className="flex items-center justify-between bg-slate-950 p-2 rounded-xl border border-slate-800">
+                  <div className="flex items-center justify-between bg-slate-950/90 p-3 rounded-3xl border border-slate-800/60 shadow-sm">
                     <button 
                       onClick={() => setSemanaAtiva(prev => Math.max(1, prev - 1))}
                       disabled={semanaAtiva === 1}
-                      className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-30"
+                      className="p-2 rounded-2xl bg-slate-900/90 hover:bg-slate-800 disabled:opacity-30"
                     >
                       <ChevronLeft className="w-5 h-5 text-slate-300" />
                     </button>
@@ -851,7 +852,7 @@ export default function App() {
                                 atualizarProgresso(novosTicks, undefined, undefined);
                                 exibirNotificacao(concluido ? "Treino desmarcado" : "Corrida guardada com sucesso! Treinador AI atualizado.", "success");
                               }}
-                              className={`p-1.5 rounded-lg border transition-all ${
+                              className={`p-1.5 rounded-2xl border transition-all ${
                                 concluido 
                                   ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
                                   : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-850'
