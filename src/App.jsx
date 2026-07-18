@@ -33,6 +33,63 @@ export default function App() {
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef(null);
 
+  // --- INJEÇÃO DINÂMICA DE TAILWIND E KATEX (CORREÇÃO DE ESTILOS LIVE) ---
+  useEffect(() => {
+    // 1. Garante que o Tailwind CSS seja injetado no Live se não estiver configurado
+    if (!document.getElementById('tailwind-cdn')) {
+      const script = document.createElement('script');
+      script.id = 'tailwind-cdn';
+      script.src = 'https://cdn.tailwindcss.com';
+      document.head.appendChild(script);
+    }
+
+    // 2. Garante a injeção do KaTeX para renderização perfeita das fórmulas de VO2 max
+    if (!document.getElementById('katex-css')) {
+      const link = document.createElement('link');
+      link.id = 'katex-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
+      document.head.appendChild(link);
+    }
+
+    if (!document.getElementById('katex-js')) {
+      const script = document.createElement('script');
+      script.id = 'katex-js';
+      script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js';
+      script.onload = () => {
+        // Carrega a extensão de auto-render do KaTeX para buscar os delimitadores $ e $$
+        const autoRenderScript = document.createElement('script');
+        autoRenderScript.id = 'katex-autorender';
+        autoRenderScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js';
+        autoRenderScript.onload = () => {
+          triggerMathRender();
+        };
+        document.head.appendChild(autoRenderScript);
+      };
+      document.head.appendChild(script);
+    }
+  }, []);
+
+  // --- DISPARADOR DE RENDERIZAÇÃO MATEMÁTICA ---
+  const triggerMathRender = () => {
+    if (window.renderMathInElement) {
+      window.renderMathInElement(document.body, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false
+      });
+    }
+  };
+
+  // Renderiza as fórmulas matemáticas sempre que mudar de aba, semana ou atualizar VO2
+  useEffect(() => {
+    setTimeout(() => {
+      triggerMathRender();
+    }, 100);
+  }, [activeTab, selectedWeek, vo2Max, activities]);
+
   // --- CARREGAR DADOS INICIAIS ---
   useEffect(() => {
     const savedWorkouts = localStorage.getItem('rfc_completed_workouts');
@@ -52,8 +109,8 @@ export default function App() {
       // Atividades iniciais de demonstração baseadas no seu Strava
       const mockActivities = [
         { id: 1, date: '2026-07-15', distance: 8.5, duration: 45, type: 'Fartlek', hrAvg: 155, vo2: 49.2 },
-        { id: 2, date: '2026-07-13', distance: 12.0, duration: 72, type: 'Longe Aeróbio', hrAvg: 142, vo2: 48.1 },
-        { id: 3, date: '2026-07-10', distance: 5.0, duration: 28, type: 'Recuperação', hrAvg: 130, vo2: 47.9 }
+        { id: 2, date: '2026-07-13', distance: 12.0, duration: 72, type: 'Treino Longo', hrAvg: 142, vo2: 48.1 },
+        { id: 3, date: '2026-07-10', distance: 5.0, duration: 28, type: 'Corrida Base', hrAvg: 130, vo2: 47.9 }
       ];
       setActivities(mockActivities);
       localStorage.setItem('rfc_activities', JSON.stringify(mockActivities));
@@ -91,11 +148,9 @@ export default function App() {
     reader.onload = (event) => {
       try {
         const text = event.target.result;
-        // Suporta tanto quebra de linha normal quanto retorno de carro do Windows
         const rows = text.split(/\r?\n/);
         if (rows.length < 2) throw new Error('O arquivo parece estar vazio.');
 
-        // Suporta separador por vírgula ou ponto e vírgula comuns em CSVs brasileiros
         const delimiter = rows[0].includes(';') ? ';' : ',';
         const headers = rows[0].split(delimiter).map(h => h.trim().replace(/"/g, '').toLowerCase());
         const parsedActivities = [];
@@ -113,9 +168,7 @@ export default function App() {
           const rawDur = parseFloat(cols[durIdx]);
           
           if (!isNaN(rawDist) && !isNaN(rawDur)) {
-            // Conversão de distância (se estiver em metros vindo da API crua do Strava)
             const distanceKm = rawDist > 100 ? rawDist / 1000 : rawDist;
-            // Conversão de tempo (se estiver em segundos)
             const durationMin = rawDur > 200 ? rawDur / 60 : rawDur;
             const dateStr = dateIdx !== -1 ? cols[dateIdx] : new Date().toISOString().split('T')[0];
             const typeStr = typeIdx !== -1 ? cols[typeIdx] : 'Corrida';
@@ -179,7 +232,6 @@ export default function App() {
     showToast(`Desconectado do ${provider.charAt(0).toUpperCase() + provider.slice(1)}.`);
   };
 
-  // Sincroniza dados com base nas conexões ativas
   const triggerServiceSync = (provider) => {
     if (!connectedServices[provider]) {
       openAuthModal(provider);
@@ -189,9 +241,8 @@ export default function App() {
     showToast(`Buscando novas atividades no ${provider.charAt(0).toUpperCase() + provider.slice(1)}...`, 'info');
     
     setTimeout(() => {
-      // Cria uma atividade realista baseada no dia da semana atual
       const today = new Date();
-      const dayOfWeek = today.getDay(); // 0: Domingo, 1: Segunda...
+      const dayOfWeek = today.getDay();
       
       let type = "Corrida Base";
       let distance = 6.0;
@@ -199,7 +250,7 @@ export default function App() {
       
       if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) {
         type = "Kettlebell + Yoga";
-        distance = 0; // Atividade de força/mobilidade
+        distance = 0;
         duration = 45;
       } else if (dayOfWeek === 2) {
         type = "Fartlek Dinâmico";
@@ -297,7 +348,6 @@ export default function App() {
   // --- PLANO DE TREINOS DE 16 SEMANAS TOTALMENTE EM PORTUGUÊS BRASILEIRO ---
   const trainingPlan = {};
 
-  // Geração das 16 Semanas respeitando os dias exatos solicitados
   for (let w = 1; w <= 16; w++) {
     const isTapering = w >= 15;
     const longDistance = isTapering ? (w === 15 ? 10 : 6) : (6 + w);
@@ -391,7 +441,7 @@ export default function App() {
         </div>
 
         {/* Mini Biometria lateral */}
-        <div className="bg-slate-900/60 rounded-2xl p-4 border border-slate-800/50 space-y-3">
+        <div className="bg-slate-900/60 rounded-2xl p-4 border border-slate-800/50 space-y-3 font-sans">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-400 font-medium">Peso Corporal</span>
             <span className="font-bold text-white">{weight} kg</span>
@@ -461,7 +511,7 @@ export default function App() {
 
         {/* Footer da Sidebar */}
         <div className="pt-4 border-t border-slate-800/60 text-center">
-          <p className="text-[10px] text-slate-500 font-mono">Run For Cover v2.2 (Build BR)</p>
+          <p className="text-[10px] text-slate-500 font-mono">Run For Cover v2.3 (Built BR)</p>
         </div>
       </aside>
 
@@ -494,7 +544,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MODAL DE CONEXÃO OAUTH (STRAVA, GOOGLE FIT, SAMSUNG HEALTH) */}
+        {/* MODAL DE CONEXÃO OAUTH */}
         {authModal && (
           <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
@@ -532,7 +582,7 @@ export default function App() {
                 </div>
 
                 {/* Detalhes de Segurança */}
-                <p className="text-[10px] text-slate-500 leading-relaxed text-center">
+                <p className="text-[10px] text-slate-500 leading-relaxed text-center font-sans">
                   O aplicativo <strong className="text-slate-400">Run For Cover</strong> cumpre todas as diretrizes da LGPD. Seus dados biométricos são processados exclusivamente no seu dispositivo local.
                 </p>
 
@@ -573,7 +623,7 @@ export default function App() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-slate-400">Meta Principal:</span>
-                <span className="bg-emerald-500/10 text-emerald-400 px-3.5 py-1.5 rounded-full text-xs font-bold border border-emerald-500/25">
+                <span className="bg-emerald-500/10 text-emerald-400 px-3.5 py-1.5 rounded-full text-xs font-bold border border-emerald-500/25 font-sans">
                   Meia Maratona 2027 (21.097 km)
                 </span>
               </div>
@@ -612,14 +662,12 @@ export default function App() {
           {activeTab === 'plano' && (
             <div className="space-y-6">
               
-              {/* Seletor Superior de Semanas */}
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-extrabold text-white">Cronograma Fisiológico</h3>
                   <p className="text-xs text-slate-400 mt-1">Garante a distribuição correta entre fortalecimento muscular e zonas de corrida aeróbica.</p>
                 </div>
                 
-                {/* Seletor de Semanas para Desktop */}
                 <div className="bg-slate-950 border border-slate-800 p-2 rounded-2xl flex flex-wrap gap-1 items-center max-w-full overflow-x-auto">
                   <span className="text-[10px] font-bold text-slate-500 px-2 uppercase">Semanas</span>
                   {[...Array(16)].map((_, i) => {
@@ -641,7 +689,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Informação sobre o Foco da Semana Ativa */}
               <div className="bg-gradient-to-r from-emerald-950/30 to-slate-950 border border-emerald-500/20 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="space-y-1">
                   <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Foco de Adaptação da Semana {selectedWeek}</h3>
@@ -670,7 +717,6 @@ export default function App() {
                             : 'bg-slate-950/90 border-slate-800/80 hover:border-emerald-500/20 shadow-md shadow-emerald-500/[0.01]'
                       }`}
                     >
-                      {/* Dia e Zona de Esforço */}
                       <div className="flex items-center justify-between w-full">
                         <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
                           isStrength ? 'bg-orange-500/10 text-orange-400' : 'bg-emerald-500/10 text-emerald-400'
@@ -682,7 +728,6 @@ export default function App() {
                         </span>
                       </div>
 
-                      {/* Descrição do Treino */}
                       <div className="space-y-1.5 flex-1 mt-2">
                         <h4 className={`font-black text-sm md:text-base leading-tight ${isDone ? 'line-through text-slate-500' : 'text-white'}`}>
                           {workout.tipo}
@@ -692,7 +737,6 @@ export default function App() {
                         </p>
                       </div>
 
-                      {/* Botão de Conclusão de Treino */}
                       <div className="flex items-center justify-between pt-3 border-t border-slate-900">
                         <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
                           Status: {isDone ? 'Concluído' : 'Pendente'}
@@ -716,7 +760,7 @@ export default function App() {
                 })}
               </div>
 
-              {/* DESKTOP SPLIT VIEW: Treinador IA Flutuante na Planilha */}
+              {/* DESKTOP SPLIT VIEW */}
               <div className="hidden lg:block bg-slate-950 border border-slate-800 p-6 rounded-3xl mt-12">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                   <div className="lg:col-span-4 space-y-4">
@@ -755,7 +799,6 @@ export default function App() {
           {activeTab === 'progresso' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               
-              {/* Esquerda: Upload de CSV */}
               <div className="lg:col-span-5 space-y-6">
                 <div>
                   <h2 className="text-xl font-black text-white">Importar Planilha Strava</h2>
@@ -778,7 +821,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Direita: Histórico de Treinos */}
               <div className="lg:col-span-7 space-y-4">
                 <h3 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest">Corridas Importadas</h3>
                 
@@ -816,7 +858,6 @@ export default function App() {
           {activeTab === 'coach' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-16rem)] lg:h-[600px]">
               
-              {/* Esquerda: Informações científicas de suporte */}
               <div className="hidden lg:flex lg:col-span-4 flex-col justify-between bg-slate-950 border border-slate-800/80 p-6 rounded-3xl">
                 <div className="space-y-6">
                   <div>
@@ -847,9 +888,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Direita: Chat */}
               <div className="lg:col-span-8 flex flex-col bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden h-full">
-                {/* Cabeçalho do Chat */}
                 <div className="bg-slate-900/60 border-b border-slate-800/80 px-5 py-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-slate-950 text-lg font-bold shadow-md shadow-emerald-500/10">
@@ -865,7 +904,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Mensagens do Chat */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
                   {messages.map((msg, idx) => (
                     <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -892,7 +930,6 @@ export default function App() {
                   <div ref={chatEndRef} />
                 </div>
 
-                {/* Input Formulário de Envio */}
                 <form onSubmit={handleSendMessage} className="border-t border-slate-800 p-4 bg-slate-900/40 flex gap-3">
                   <input
                     type="text"
@@ -917,7 +954,6 @@ export default function App() {
           {activeTab === 'sync' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               
-              {/* Esquerda: Apps Conectadas */}
               <div className="lg:col-span-7 space-y-6">
                 <div>
                   <h2 className="text-xl font-black text-white">Sincronização de Saúde</h2>
@@ -936,12 +972,12 @@ export default function App() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-extrabold text-sm text-slate-200">Strava</h3>
+                          <h3 className="font-extrabold text-sm text-slate-200 font-sans">Strava</h3>
                           {connectedServices.strava && (
                             <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] px-2 py-0.5 rounded-full font-bold">Conectado</span>
                           )}
                         </div>
-                        <p className="text-[10px] text-slate-500">API Oficial de Atividades de Corrida</p>
+                        <p className="text-[10px] text-slate-500 font-sans">API Oficial de Atividades de Corrida</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -981,12 +1017,12 @@ export default function App() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-extrabold text-sm text-slate-200">Google Fit</h3>
+                          <h3 className="font-extrabold text-sm text-slate-200 font-sans">Google Fit</h3>
                           {connectedServices.googleFit && (
                             <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] px-2 py-0.5 rounded-full font-bold">Conectado</span>
                           )}
                         </div>
-                        <p className="text-[10px] text-slate-500">Dados de batimentos cardíacos e passos diários</p>
+                        <p className="text-[10px] text-slate-500 font-sans">Dados de batimentos cardíacos e passos diários</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -1026,12 +1062,12 @@ export default function App() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-extrabold text-sm text-slate-200">Samsung Health</h3>
+                          <h3 className="font-extrabold text-sm text-slate-200 font-sans">Samsung Health</h3>
                           {connectedServices.samsungHealth && (
                             <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] px-2 py-0.5 rounded-full font-bold">Conectado</span>
                           )}
                         </div>
-                        <p className="text-[10px] text-slate-500">Métricas de sono, peso e treinos de wearables</p>
+                        <p className="text-[10px] text-slate-500 font-sans">Métricas de sono, peso e treinos de wearables</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -1064,7 +1100,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Direita: Configurações Biométricas */}
               <div className="lg:col-span-5 space-y-6">
                 <div>
                   <h2 className="text-xl font-black text-white">Ajustes Biométricos</h2>
