@@ -5,7 +5,7 @@ const apiKey = "";
 
 export default function App() {
   // --- ESTADOS DO SISTEMA ---
-  const [activeTab, setActiveTab] = useState('plano'); // 'plano' | 'progresso' | 'coach' | 'sync'
+  const [activeTab, setActiveTab] = useState('plano'); // 'plano' | 'progresso' | 'nutricao' | 'coach' | 'sync'
   const [activities, setActivities] = useState([]);
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [completedWorkouts, setCompletedWorkouts] = useState({});
@@ -33,9 +33,21 @@ export default function App() {
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef(null);
 
+  // --- NOVOS ESTADOS GEMINI IA ---
+  const [aiLoading, setAiLoading] = useState(false);
+  const [adaptationInput, setAdaptationInput] = useState('');
+  const [adaptedPlan, setAdaptedPlan] = useState(null); // Plano da semana customizado por IA
+  const [activeNutritionWorkout, setActiveNutritionWorkout] = useState(null); // Treino selecionado para gerar nutrição rápida
+  const [nutritionPlan, setNutritionPlan] = useState(null); // Nutrição gerada por IA rápida de treino
+  const [paceStrategy, setPaceStrategy] = useState(null); // Estratégia de ritmo gerada por IA
+
+  // --- ESTADOS DE DIRECIONAMENTO NUTRITIVO INTEGRADO ---
+  const [nutritionGoal, setNutritionGoal] = useState('deficit_energia'); // 'deficit_energia' | 'performance_pura'
+  const [dailyCalories, setDailyCalories] = useState(2100);
+  const [aiMenuResult, setAiMenuResult] = useState(''); // Menu diário gerado pela IA para perda de peso + corrida
+
   // --- INJEÇÃO DINÂMICA DE TAILWIND E KATEX (CORREÇÃO DE ESTILOS LIVE) ---
   useEffect(() => {
-    // 1. Garante que o Tailwind CSS seja injetado no Live se não estiver configurado
     if (!document.getElementById('tailwind-cdn')) {
       const script = document.createElement('script');
       script.id = 'tailwind-cdn';
@@ -43,7 +55,6 @@ export default function App() {
       document.head.appendChild(script);
     }
 
-    // 2. Garante a injeção do KaTeX para renderização perfeita das fórmulas de VO2 max
     if (!document.getElementById('katex-css')) {
       const link = document.createElement('link');
       link.id = 'katex-css';
@@ -57,7 +68,6 @@ export default function App() {
       script.id = 'katex-js';
       script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js';
       script.onload = () => {
-        // Carrega a extensão de auto-render do KaTeX para buscar os delimitadores $ e $$
         const autoRenderScript = document.createElement('script');
         autoRenderScript.id = 'katex-autorender';
         autoRenderScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js';
@@ -70,7 +80,6 @@ export default function App() {
     }
   }, []);
 
-  // --- DISPARADOR DE RENDERIZAÇÃO MATEMÁTICA ---
   const triggerMathRender = () => {
     if (window.renderMathInElement) {
       window.renderMathInElement(document.body, {
@@ -83,12 +92,11 @@ export default function App() {
     }
   };
 
-  // Renderiza as fórmulas matemáticas sempre que mudar de aba, semana ou atualizar VO2
   useEffect(() => {
     setTimeout(() => {
       triggerMathRender();
     }, 100);
-  }, [activeTab, selectedWeek, vo2Max, activities]);
+  }, [activeTab, selectedWeek, vo2Max, activities, adaptedPlan, nutritionPlan, paceStrategy, aiMenuResult]);
 
   // --- CARREGAR DADOS INICIAIS ---
   useEffect(() => {
@@ -106,7 +114,6 @@ export default function App() {
     if (savedActivities) {
       setActivities(JSON.parse(savedActivities));
     } else {
-      // Atividades iniciais de demonstração baseadas no seu Strava
       const mockActivities = [
         { id: 1, date: '2026-07-15', distance: 8.5, duration: 45, type: 'Fartlek', hrAvg: 155, vo2: 49.2 },
         { id: 2, date: '2026-07-13', distance: 12.0, duration: 72, type: 'Treino Longo', hrAvg: 142, vo2: 48.1 },
@@ -117,13 +124,21 @@ export default function App() {
     }
   }, []);
 
-  // --- SINALIZAR MENSAGENS (TOAST) ---
+  // --- ATUALIZAÇÕES AUTOMÁTICAS DE METABOLISMO ---
+  useEffect(() => {
+    // Calculo básico de necessidades energéticas em déficit
+    // 22 kcal/kg para metabolismo de repouso + fator de atividade física moderada
+    const basal = weight * 22;
+    const activeKcal = basal * 1.35;
+    const deficitTarget = Math.round(activeKcal - 400); // 400 kcal de déficit moderado para perder peso com energia
+    setDailyCalories(deficitTarget > 1500 ? deficitTarget : 1600);
+  }, [weight]);
+
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
 
-  // --- PERSISTIR PROGRESSO ---
   const toggleWorkout = (week, dayIndex) => {
     const key = `${week}-${dayIndex}`;
     const updated = { ...completedWorkouts, [key]: !completedWorkouts[key] };
@@ -132,14 +147,12 @@ export default function App() {
     showToast(updated[key] ? 'Treino marcado como concluído!' : 'Treino marcado como pendente.');
   };
 
-  // --- CÁLCULOS DE FISIOLOGIA ESPORTIVA (JACK DANIELS & ACSM) ---
   const calculateVO2Max = (distance, durationMinutes) => {
     const speedMps = (distance * 1000) / (durationMinutes * 60);
     const estimatedVo2 = (speedMps * 0.2) + (speedMps * 0.9 * 0.15) + 3.5; 
     return parseFloat(estimatedVo2.toFixed(1));
   };
 
-  // --- LEITOR E IMPORTADOR DE CSV (ESTRUTURA STRAVA ROBUSTA) ---
   const handleCsvUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -285,15 +298,8 @@ export default function App() {
     }, 1500);
   };
 
-  // --- CHAT COM COACH INTELIGENTE (INTEGRAÇÃO GEMINI COM RETRIES) ---
-  const callCoachAPI = async (userPrompt) => {
-    const systemPrompt = `Você é o treinador virtual do aplicativo "Run For Cover" especialista em corrida, treino de força (Kettlebell) e Yoga. O atleta está se preparando para uma Meia Maratona em 2027. O peso atual dele é de ${weight} kg e o VO2 Max estimado é de ${vo2Max} ml/kg/min.
-    Utilize suas bases científicas em suas respostas:
-    1. O estudo sobre Fartlek de Andres (2024) para explicar treinos de ritmo de terça-feira.
-    2. A dissertação de Guilherme (2004) para enfatizar o desenvolvimento aeróbico nas corridas de quinta-feira e fim de semana.
-    3. Os benefícios comprovados do treino de força e Kettlebell integrado com Yoga (segundas, quartas e sextas) na melhoria da economia de corrida, estabilização da bacia e redução do risco de lesões.
-    Responda sempre em Português do Brasil (PT-BR) de forma motivadora, amigável e em pequenos tópicos para facilitar a leitura no celular.`;
-
+  // --- FUNÇÃO GLOBAL DE INTEGRAÇÃO COM GEMINI API ---
+  const callGeminiAPI = async (userPrompt, systemInstruction) => {
     let delay = 1000;
     for (let attempt = 1; attempt <= 5; attempt++) {
       try {
@@ -302,7 +308,7 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: userPrompt }] }],
-            systemInstruction: { parts: [{ text: systemPrompt }] }
+            systemInstruction: { parts: [{ text: systemInstruction }] }
           })
         });
 
@@ -318,6 +324,130 @@ export default function App() {
         delay *= 2; // Backoff exponencial
       }
     }
+  };
+
+  // --- RECURSO IA: ADAPTADOR DE PLANILHA INDIVIDUAL DA SEMANA ---
+  const handleAdaptPlan = async (reason) => {
+    const inputToUse = reason || adaptationInput;
+    if (!inputToUse.trim()) return;
+
+    setAiLoading(true);
+    const currentWeekPlan = trainingPlan[selectedWeek];
+    const systemInstruction = `Você é o treinador principal de corrida do app Run For Cover. O usuário deseja adaptar a planilha da Semana ${selectedWeek} devido ao seguinte motivo: "${inputToUse}".
+    Sua tarefa é reajustar com segurança os 6 treinos desta semana, mantendo a estrutura geral (Seg/Qua/Sex: Kettlebell+Yoga, Ter/Qui/Sábado ou Domingo: Corridas), mas alterando volumes, intensidades ou adicionando descansos ativos conforme a queixa ou objetivo do aluno.
+    Forneça a resposta em formato Markdown muito limpo e direto, dividindo estritamente por dias da semana. Mantenha o tom de incentivo profissional e utilize Português do Brasil de forma concisa.`;
+
+    const prompt = `Por favor, adapte esta programação da Semana ${selectedWeek}:
+    Foco Atual: ${currentWeekPlan.foco}
+    Treinos:
+    ${currentWeekPlan.treinos.map(t => `- ${t.dia} (${t.tipo}): ${t.desc} [Zonas: ${t.zona}]`).join('\n')}
+    
+    Nova restrição/ajuste do atleta: "${inputToUse}"`;
+
+    try {
+      const responseText = await callGeminiAPI(prompt, systemInstruction);
+      setAdaptedPlan({
+        week: selectedWeek,
+        reason: inputToUse,
+        content: responseText
+      });
+      showToast('Planilha adaptada com sucesso pelo seu treinador IA!');
+    } catch (error) {
+      showToast('Não foi possível conectar com o motor de IA. Tente novamente.', 'error');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // --- RECURSO IA: GERADOR DE NUTRIÇÃO PERSONALIZADO ---
+  const handleGenerateNutrition = async (workout) => {
+    setActiveNutritionWorkout(workout);
+    setAiLoading(true);
+    
+    const systemInstruction = `Você é um nutricionista esportivo de elite integrado ao Run For Cover. O atleta pesa ${weight}kg e fará o treino específico detalhado.
+    Gere recomendações de alimentação em tópicos rápidos:
+    1. Pré-treino (carboidratos ideais e timing).
+    2. Hidratação e eletrólitos durante o treino.
+    3. Pós-treino (proporção carboidrato/proteína para acelerar a recuperação).
+    Seja prático e direto para o público brasileiro.`;
+
+    const prompt = `Planeje a estratégia nutricional para o seguinte treino:
+    Tipo: ${workout.tipo}
+    Zonas de esforço estimadas: ${workout.zona}
+    Descrição do exercício: ${workout.desc}`;
+
+    try {
+      const responseText = await callGeminiAPI(prompt, systemInstruction);
+      setNutritionPlan(responseText);
+    } catch (error) {
+      showToast('Erro ao obter estratégias de nutrição.', 'error');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // --- RECURSO IA: CARDÁPIO IA DIÁRIO E ESTRATÉGIA DE EMAGRECIMENTO COM ENERGIA ---
+  const handleGenerateDailyMenu = async () => {
+    setAiLoading(true);
+    const systemInstruction = `Você é um nutricionista esportivo especializado em esportes de endurance.
+    Seu cliente pesa ${weight}kg, tem VO2Max de ${vo2Max} e quer PERDER PESO mantendo MÁXIMA ENERGIA durante o dia e principalmente para os treinos de corrida (Fartleks e Longos) e fortalecimento unilateral com Kettlebell e Yoga.
+    Seja motivador e prático. Monte um plano de orientação estruturado com:
+    1. Cardápio Diário Sugerido (com foco em densidade de nutrientes, proteínas de alto valor biológico e distribuição estratégica de carboidratos complexos perto do horário de treino).
+    2. Estratégia de "Ciclo de Carboidratos" (como comer mais carboidratos nos dias de corrida forte/longo e criar um déficit seguro/low-carb nos dias de Kettlebell + Yoga).
+    3. Guia de Micronutrientes & Hidratação (importantes para evitar cãibras e manter o sistema imune blindado durante a perda de gordura).
+    Escreva em Português do Brasil de forma estruturada e em formato Markdown limpo.`;
+
+    const prompt = `Gere meu direcionamento nutricional personalizado para:
+    Peso Atual: ${weight} kg
+    Meta de Calorias Sugerida: ${dailyCalories} kcal/dia
+    Meta Secundária: Preservação de massa magra, perda de gordura e performance excelente no treino de Meia Maratona.`;
+
+    try {
+      const responseText = await callGeminiAPI(prompt, systemInstruction);
+      setAiMenuResult(responseText);
+      showToast('Direcionamento nutricional estratégico traçado com sucesso!');
+    } catch (error) {
+      showToast('Ocorreu um erro ao estruturar seu cardápio com o Gemini. Tente novamente.', 'error');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // --- RECURSO IA: ANÁLISE DE RITMO PARA A MEIA MARATONA ---
+  const handleGeneratePaceStrategy = async () => {
+    setAiLoading(true);
+    const systemInstruction = `Você é um fisiologista especialista em corrida de fundo. Com base no peso do atleta (${weight}kg) e o VO2 Max atualizado de ${vo2Max}, forneceça uma previsão de performance científica e estratégica para a Meia Maratona (21.097 km) de 2027.
+    Divida a resposta em:
+    1. Ritmo (Pace) alvo estimado em minutos por quilômetro.
+    2. Divisão de prova (Splits sugeridos para os primeiros 7km, intermediários de 7-14km, e final de 14-21km).
+    3. Dica psicológica baseada no método Fartlek e desenvolvimento aeróbio.
+    Use formatação KaTeX se aplicável e responda em Português do Brasil.`;
+
+    const prompt = `Analise meu perfil fisiológico:
+    Peso: ${weight} kg
+    Consumo de oxigênio estimado ($VO_2\\max$): ${vo2Max} ml/kg/min`;
+
+    try {
+      const responseText = await callGeminiAPI(prompt, systemInstruction);
+      setPaceStrategy(responseText);
+      showToast('Estratégia de prova traçada!');
+    } catch (error) {
+      showToast('Erro ao obter a estratégia de ritmo.', 'error');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // --- CHAT COM COACH VIRTUAL (GEMINI INTEGRADO) ---
+  const callCoachAPI = async (userPrompt) => {
+    const systemPrompt = `Você é o treinador virtual do aplicativo "Run For Cover" especialista em corrida, treino de força (Kettlebell) e Yoga. O atleta está se preparando para uma Meia Maratona em 2027. O peso atual dele é de ${weight} kg e o VO2 Max estimado é de ${vo2Max} ml/kg/min.
+    Utilize suas bases científicas em suas respostas:
+    1. O estudo sobre Fartlek de Andres (2024) para explicar treinos de ritmo de terça-feira.
+    2. A dissertação de Guilherme (2004) para enfatizar o desenvolvimento aeróbico nas corridas de quinta-feira e fim de semana.
+    3. Os benefícios comprovados do treino de força e Kettlebell integrado com Yoga (segundas, quartas e sextas) na melhoria da economia de corrida, estabilização da bacia e redução do risco de lesões.
+    Responda sempre em Português do Brasil (PT-BR) de forma motivadora, amigável e em pequenos tópicos para facilitar a leitura no celular.`;
+
+    return await callGeminiAPI(userPrompt, systemPrompt);
   };
 
   const handleSendMessage = async (e) => {
@@ -409,10 +539,19 @@ export default function App() {
     };
   }
 
-  // --- DERIVADOS DE PERFORMANCE ---
+  // --- DERIVADOS DE PERFORMANCE E PROGRESSO ---
   const stats = React.useMemo(() => {
     const totalKm = activities.reduce((sum, act) => sum + act.distance, 0);
     const totalMin = activities.reduce((sum, act) => sum + act.duration, 0);
+    
+    // Contagem de treinos marcados como feitos para a semana ativa
+    let weekCompleted = 0;
+    for (let i = 0; i < 6; i++) {
+      if (completedWorkouts[`${selectedWeek}-${i}`]) {
+        weekCompleted++;
+      }
+    }
+    const weekProgressPercent = Math.round((weekCompleted / 6) * 100);
     const completedCount = Object.values(completedWorkouts).filter(Boolean).length;
     
     const estHalfMarathonTime = vo2Max > 0 
@@ -421,8 +560,8 @@ export default function App() {
 
     const formattedHalfTime = `${Math.floor(estHalfMarathonTime / 60)}h ${estHalfMarathonTime % 60}m`;
 
-    return { totalKm: totalKm.toFixed(1), totalMin, completedCount, formattedHalfTime };
-  }, [activities, completedWorkouts, vo2Max]);
+    return { totalKm: totalKm.toFixed(1), totalMin, completedCount, formattedHalfTime, weekCompleted, weekProgressPercent };
+  }, [activities, completedWorkouts, vo2Max, selectedWeek]);
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col md:flex-row font-sans overflow-x-hidden antialiased">
@@ -484,6 +623,22 @@ export default function App() {
             <span>Registro de Progresso</span>
           </button>
 
+          {/* TAB EXCLUSIVA: NUTRIÇÃO & ENERGIA */}
+          <button 
+            onClick={() => setActiveTab('nutricao')}
+            className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${
+              activeTab === 'nutricao' 
+                ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/10' 
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+            }`}
+          >
+            <span className="text-lg">🥗</span>
+            <span className="flex items-center gap-1.5">
+              Nutrição & Peso
+              <span className="bg-red-500 text-[9px] text-white px-1.5 py-0.5 rounded-full font-bold">Novo</span>
+            </span>
+          </button>
+
           <button 
             onClick={() => setActiveTab('coach')}
             className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${
@@ -511,7 +666,7 @@ export default function App() {
 
         {/* Footer da Sidebar */}
         <div className="pt-4 border-t border-slate-800/60 text-center">
-          <p className="text-[10px] text-slate-500 font-mono">Run For Cover v2.3 (Built BR)</p>
+          <p className="text-[10px] text-slate-500 font-mono font-bold">Run For Cover v2.5 (Nutrition+)</p>
         </div>
       </aside>
 
@@ -619,7 +774,7 @@ export default function App() {
             <div className="hidden md:flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-2xl font-black text-white">Painel do Atleta</h2>
-                <p className="text-xs text-slate-400">Acompanhe seu rendimento, planos de força e corrida aeróbica.</p>
+                <p className="text-xs text-slate-400 font-medium">Acompanhe seu rendimento, planos de força e corrida aeróbica.</p>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-slate-400">Meta Principal:</span>
@@ -665,7 +820,7 @@ export default function App() {
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-extrabold text-white">Cronograma Fisiológico</h3>
-                  <p className="text-xs text-slate-400 mt-1">Garante a distribuição correta entre fortalecimento muscular e zonas de corrida aeróbica.</p>
+                  <p className="text-xs text-slate-400 mt-1">Selecione as semanas de preparação e acompanhe o seu progresso.</p>
                 </div>
                 
                 <div className="bg-slate-950 border border-slate-800 p-2 rounded-2xl flex flex-wrap gap-1 items-center max-w-full overflow-x-auto">
@@ -675,7 +830,10 @@ export default function App() {
                     return (
                       <button
                         key={w}
-                        onClick={() => setSelectedWeek(w)}
+                        onClick={() => {
+                          setSelectedWeek(w);
+                          setAdaptedPlan(null); // Reseta a adaptação ao trocar de semana
+                        }}
                         className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
                           selectedWeek === w
                             ? 'bg-emerald-500 text-slate-950'
@@ -688,6 +846,117 @@ export default function App() {
                   })}
                 </div>
               </div>
+
+              {/* RASTREADOR DE CONCLUSÃO DA SEMANA */}
+              <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🎯</span>
+                  <div>
+                    <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Aproveitamento da Semana {selectedWeek}</h4>
+                    <p className="text-sm text-slate-200 font-bold">{stats.weekCompleted} de 6 treinos concluídos</p>
+                  </div>
+                </div>
+                <div className="flex-1 max-w-md w-full bg-slate-900 rounded-full h-3 border border-slate-800 overflow-hidden relative">
+                  <div 
+                    className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${stats.weekProgressPercent}%` }}
+                  />
+                </div>
+                <span className="text-xs font-mono font-bold text-emerald-400">{stats.weekProgressPercent}%</span>
+              </div>
+
+              {/* PAINEL DE ADAPTAÇÃO INTELIGENTE DA SEMANA (ESTILO PREMIUM E VISÍVEL) */}
+              <div className="bg-slate-950 border-2 border-emerald-500/30 p-6 rounded-3xl space-y-4 shadow-xl shadow-emerald-500/[0.02] relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none"></div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl animate-pulse">✨</span>
+                    <div>
+                      <h3 className="font-extrabold text-sm md:text-base text-emerald-400 uppercase tracking-wider">Ajuste e Adaptação Inteligente da Semana {selectedWeek}</h3>
+                      <p className="text-xs text-slate-400">Como está o seu corpo hoje? Adapte os treinos de força e corrida em 1 clique!</p>
+                    </div>
+                  </div>
+                  <span className="bg-emerald-500/10 text-emerald-400 text-[10px] px-2.5 py-1 rounded-full font-bold uppercase border border-emerald-500/20">Gemini Active</span>
+                </div>
+                
+                {/* Atendendo à queixa de perda de peso e fadiga */}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button 
+                    disabled={aiLoading}
+                    onClick={() => handleAdaptPlan("Estou sentindo dores musculares profundas pós-treino")}
+                    className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1"
+                  >
+                    <span>😣</span> Estou Dolorido
+                  </button>
+                  <button 
+                    disabled={aiLoading}
+                    onClick={() => handleAdaptPlan("Estou me sentindo fadigado no dia a dia, preciso focar em manter minha energia e emagrecimento leve")}
+                    className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1"
+                  >
+                    <span>🥱</span> Baixa Energia / Fadiga
+                  </button>
+                  <button 
+                    disabled={aiLoading}
+                    onClick={() => handleAdaptPlan("Quero focar na eficiência aeróbia e otimizar perda de gordura nos dias de Kettlebell")}
+                    className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1"
+                  >
+                    <span>🔥</span> Otimizar Emagrecimento
+                  </button>
+                  <button 
+                    disabled={aiLoading}
+                    onClick={() => handleAdaptPlan("Estou muito bem disposto hoje e quero adicionar 20% a mais de volume no treino longo de corrida")}
+                    className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1"
+                  >
+                    <span>🚀</span> Quero Desafio
+                  </button>
+                </div>
+
+                <div className="flex gap-2 items-center pt-2">
+                  <input 
+                    type="text"
+                    value={adaptationInput}
+                    onChange={e => setAdaptationInput(e.target.value)}
+                    placeholder="Digite sua própria queixa (ex: Sinto cansaço nas terças; adapte o Fartlek para menos impacto)..."
+                    className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    disabled={aiLoading}
+                    onClick={() => handleAdaptPlan()}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-5 py-3 rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5"
+                  >
+                    {aiLoading ? (
+                      <span className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                    ) : (
+                      <>✨ Adaptar</>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* RESULTADO DA SEMANA ADAPTADA PELA IA */}
+              {adaptedPlan && adaptedPlan.week === selectedWeek && (
+                <div className="bg-gradient-to-br from-indigo-950/30 to-slate-950 border-2 border-indigo-500/30 rounded-3xl p-6 space-y-4 shadow-xl">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-2xl text-indigo-400">✨</span>
+                      <div>
+                        <h4 className="font-black text-sm text-indigo-300 uppercase tracking-widest leading-none">Planilha Adaptada com Sucesso</h4>
+                        <p className="text-[10px] text-slate-400 mt-1">Parâmetro de Ajuste: <strong className="text-slate-300">"{adaptedPlan.reason}"</strong></p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setAdaptedPlan(null)}
+                      className="text-xs text-slate-500 hover:text-slate-300 font-bold bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800"
+                    >
+                      Restaurar Original ✕
+                    </button>
+                  </div>
+                  <div className="text-xs md:text-sm text-slate-200 leading-relaxed space-y-3 bg-slate-900/60 p-4 rounded-2xl border border-indigo-500/10 max-h-96 overflow-y-auto whitespace-pre-line">
+                    {adaptedPlan.content}
+                  </div>
+                </div>
+              )}
 
               <div className="bg-gradient-to-r from-emerald-950/30 to-slate-950 border border-emerald-500/20 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="space-y-1">
@@ -708,8 +977,7 @@ export default function App() {
                   return (
                     <div 
                       key={idx} 
-                      onClick={() => toggleWorkout(selectedWeek, idx)}
-                      className={`p-5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between gap-4 h-full relative ${
+                      className={`p-5 rounded-2xl border transition-all duration-200 flex flex-col justify-between gap-4 h-full relative ${
                         isDone 
                           ? 'bg-slate-950/40 border-emerald-500/10 opacity-75' 
                           : isStrength 
@@ -737,60 +1005,75 @@ export default function App() {
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between pt-3 border-t border-slate-900">
-                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
-                          Status: {isDone ? 'Concluído' : 'Pendente'}
-                        </span>
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all ${
-                          isDone 
-                            ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20' 
-                            : isStrength 
-                              ? 'border-orange-500/30 bg-slate-900 hover:border-orange-400' 
-                              : 'border-slate-700 bg-slate-900 hover:border-emerald-400'
-                        }`}>
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-900 gap-2">
+                        {/* GEMINI FUEL/NUTRITION TRIGGER BUTTON */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleGenerateNutrition(workout);
+                          }}
+                          className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-wide border border-emerald-500/20 transition flex items-center gap-1"
+                        >
+                          ✨ Combustível
+                        </button>
+
+                        <button
+                          onClick={() => toggleWorkout(selectedWeek, idx)}
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all ${
+                            isDone 
+                              ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20' 
+                              : isStrength 
+                                ? 'border-orange-500/30 bg-slate-900 hover:border-orange-400' 
+                                : 'border-slate-700 bg-slate-900 hover:border-emerald-400'
+                          }`}
+                        >
                           {isDone && (
                             <svg className="w-4 h-4 font-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
                           )}
-                        </div>
+                        </button>
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              {/* DESKTOP SPLIT VIEW */}
-              <div className="hidden lg:block bg-slate-950 border border-slate-800 p-6 rounded-3xl mt-12">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                  <div className="lg:col-span-4 space-y-4">
-                    <h3 className="text-lg font-black text-white">Consulte seu Treinador</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Dúvidas sobre a execução dos Swings ou sobre a cadência ideal no Fartlek de terça? Pergunte direto ao seu Treinador IA focado em fisiologia do esporte.
-                    </p>
-                    <button 
-                      onClick={() => setActiveTab('coach')} 
-                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-bold text-xs tracking-wider transition"
-                    >
-                      Abrir Chat Completo
-                    </button>
-                  </div>
-                  <div className="lg:col-span-8 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 h-48 flex flex-col justify-between">
-                    <p className="text-xs text-slate-300 italic">"Conectar treinos de Kettlebell e Yoga nas segundas, quartas e sextas ajuda na ativação estabilizadora de pelve e reabilitação de isquiotibiais, prevenindo lesões nos longos."</p>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="Ex: Como executar corretamente o Kettlebell RDL?"
-                        value={inputMessage}
-                        onChange={e => setInputMessage(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200"
-                      />
-                      <button onClick={() => handleSendMessage()} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 rounded-xl text-xs font-bold">Enviar</button>
+              {/* MODAL DE NUTRIÇÃO IA RÁPIDA DE TREINO */}
+              {activeNutritionWorkout && nutritionPlan && (
+                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                  <div className="bg-slate-900 border border-emerald-500/30 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl">
+                    <div className="p-6 space-y-4">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">✨</span>
+                          <div>
+                            <h3 className="font-extrabold text-sm text-slate-200">Plano de Combustível IA</h3>
+                            <p className="text-[10px] text-emerald-400 font-mono font-bold uppercase">{activeNutritionWorkout.tipo}</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setActiveNutritionWorkout(null);
+                            setNutritionPlan(null);
+                          }}
+                          className="text-slate-400 hover:text-white font-bold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 max-h-96 overflow-y-auto whitespace-pre-line text-xs md:text-sm text-slate-300 leading-relaxed">
+                        {nutritionPlan}
+                      </div>
+
+                      <p className="text-[10px] text-slate-500 italic text-center">
+                        Calculado com base em {weight} kg e exigência de glicogênio estimada para {activeNutritionWorkout.zona}.
+                      </p>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
             </div>
           )}
@@ -818,6 +1101,35 @@ export default function App() {
                     </div>
                     <input type="file" accept=".csv" className="hidden" onChange={handleCsvUpload} />
                   </label>
+                </div>
+
+                {/* INTEGRATING GEMINI: PLANEJAMENTO ESTRATÉGICO IA */}
+                <div className="bg-gradient-to-br from-emerald-950/20 to-slate-950 border border-emerald-500/30 rounded-2xl p-5 space-y-4 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">✨</span>
+                    <h3 className="font-extrabold text-sm text-white">Previsão e Ritmo de Meia Maratona</h3>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Com base no seu nível de $VO_2\max$ atual de <strong className="text-emerald-400">{vo2Max} ml/kg/min</strong>, o Gemini gerará uma estratégia ideal de pacing (splits de velocidade) para a prova de 21.097 km.
+                  </p>
+                  
+                  <button 
+                    disabled={aiLoading}
+                    onClick={handleGeneratePaceStrategy}
+                    className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-2.5 rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5"
+                  >
+                    {aiLoading ? (
+                      <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                    ) : (
+                      <>✨ Estruturar Estratégia de Prova</>
+                    )}
+                  </button>
+
+                  {paceStrategy && (
+                    <div className="bg-slate-900/80 p-4 rounded-xl border border-emerald-500/15 text-xs text-slate-300 leading-relaxed space-y-2 whitespace-pre-line max-h-60 overflow-y-auto">
+                      {paceStrategy}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -854,7 +1166,138 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 3: COACH INTELIGENTE */}
+          {/* TAB 3: DIRECIONAMENTO NUTRITIVO (NOVA) */}
+          {activeTab === 'nutricao' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-black text-white">Direcionamento Nutritivo & Peso</h2>
+                <p className="text-xs text-slate-400 mt-1">Estratégias para queima de gordura preservando o rendimento do seu coração e dos seus músculos.</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                {/* Lado Esquerdo: Calculadoras e Métricas */}
+                <div className="lg:col-span-5 space-y-6">
+                  <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl space-y-4">
+                    <h3 className="font-extrabold text-sm text-white uppercase tracking-wider">Calculadora Fisiológica de Calorias</h3>
+                    
+                    <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-3">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400 font-medium">Seu peso cadastrado:</span>
+                        <strong className="text-white font-mono">{weight} kg</strong>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400 font-medium">Déficit Alvo de Gordura:</span>
+                        <strong className="text-orange-400">-400 kcal/dia</strong>
+                      </div>
+                      <div className="h-[1px] bg-slate-800/80"></div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-400 font-medium">Meta Diária Sugerida:</span>
+                        <strong className="text-lg text-emerald-400 font-black font-mono">{dailyCalories} kcal</strong>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">Qual é o seu objetivo prioritário?</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button 
+                          onClick={() => setNutritionGoal('deficit_energia')}
+                          className={`px-3 py-2.5 rounded-xl text-xs font-bold transition border ${
+                            nutritionGoal === 'deficit_energia'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700'
+                          }`}
+                        >
+                          🔥 Emagrecer com Energia
+                        </button>
+                        <button 
+                          onClick={() => setNutritionGoal('performance_pura')}
+                          className={`px-3 py-2.5 rounded-xl text-xs font-bold transition border ${
+                            nutritionGoal === 'performance_pura'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700'
+                          }`}
+                        >
+                          ⚡ Performance Máxima
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-2">
+                      <h4 className="text-xs font-extrabold text-slate-200 uppercase">Proporção Macrossugerida (Perda de Peso)</h4>
+                      <div className="flex h-3 rounded-full overflow-hidden">
+                        <div className="bg-emerald-400 w-[40%]" title="Carboidratos (Energia)"></div>
+                        <div className="bg-orange-400 w-[35%]" title="Proteínas (Preservação de Músculos)"></div>
+                        <div className="bg-yellow-400 w-[25%]" title="Gorduras boas"></div>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-slate-400">
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 bg-emerald-400 rounded-full"></span> 40% Carb</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 bg-orange-400 rounded-full"></span> 35% Prot</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 bg-yellow-400 rounded-full"></span> 25% Gord</span>
+                      </div>
+                    </div>
+
+                    <button
+                      disabled={aiLoading}
+                      onClick={handleGenerateDailyMenu}
+                      className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10"
+                    >
+                      {aiLoading ? (
+                        <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                      ) : (
+                        '✨ Gerar Orientação & Cardápio Diário'
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Conselhos Científicos Rápidos baseados nas PDFs */}
+                  <div className="bg-slate-950 border border-slate-800 p-5 rounded-3xl space-y-3">
+                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-widest">Base de Economia de Corrida</h4>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      A perda de gordura corporal diminui a barreira de massa a ser carregada, otimizando o seu consumo relativo de oxigênio ($VO_2\max = ml/kg/min$). O treino unilateral com **Kettlebell Swings** e posturas de **Yoga** protege seus ligamentos enquanto seu corpo trabalha em leve déficit calórico.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Lado Direito: Cardápio e Plano estruturado pela IA */}
+                <div className="lg:col-span-7 space-y-4">
+                  <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 h-full flex flex-col justify-between">
+                    
+                    {aiMenuResult ? (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                          <h3 className="font-extrabold text-sm text-emerald-400 uppercase tracking-widest">Seu Cardápio & Estratégia de Combustível</h3>
+                          <button 
+                            onClick={() => setAiMenuResult('')}
+                            className="text-xs text-slate-500 hover:text-slate-300"
+                          >
+                            Limpar
+                          </button>
+                        </div>
+                        <div className="text-xs md:text-sm text-slate-200 leading-relaxed whitespace-pre-line space-y-3 max-h-[500px] overflow-y-auto pr-2 bg-slate-900/60 p-4 rounded-2xl border border-slate-800 font-sans">
+                          {aiMenuResult}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-center py-20 px-6 space-y-4">
+                        <span className="text-5xl">🍉</span>
+                        <div>
+                          <h4 className="text-base font-black text-white">Nenhum direcionamento de cardápio ativo</h4>
+                          <p className="text-xs text-slate-400 mt-2 max-w-sm">
+                            Clique em "Gerar Orientação & Cardápio Diário" para carregar estratégias de nutrição esportiva focadas em alta energia e déficit lipídico seguro.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: COACH INTELIGENTE */}
           {activeTab === 'coach' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-16rem)] lg:h-[600px]">
               
@@ -950,7 +1393,7 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 4: SINCRONIZAÇÃO DE DISPOSITIVOS & BIOMETRIA */}
+          {/* TAB 5: SINCRONIZAÇÃO DE DISPOSITIVOS & BIOMETRIA */}
           {activeTab === 'sync' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               
@@ -1145,46 +1588,57 @@ export default function App() {
         </main>
 
         {/* 3. BARRA DE NAVEGAÇÃO INFERIOR PARA DISPOSITIVOS MÓVEIS (Oculta no Desktop) */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-md border-t border-slate-800/80 px-4 py-2 z-50">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-md border-t border-slate-800/80 px-2 py-2 z-50">
           <div className="max-w-md mx-auto flex items-center justify-around gap-1">
             <button 
               onClick={() => setActiveTab('plano')}
-              className={`flex flex-col items-center justify-center flex-1 py-1 px-2.5 rounded-xl transition ${
+              className={`flex flex-col items-center justify-center flex-1 py-1 px-1.5 rounded-xl transition ${
                 activeTab === 'plano' ? 'text-emerald-400 bg-slate-900/60' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <span className="text-lg">📋</span>
-              <span className="text-[10px] mt-0.5 font-semibold">Planilha</span>
+              <span className="text-[9px] mt-0.5 font-bold">Planilha</span>
             </button>
 
             <button 
               onClick={() => setActiveTab('progresso')}
-              className={`flex flex-col items-center justify-center flex-1 py-1 px-2.5 rounded-xl transition ${
+              className={`flex flex-col items-center justify-center flex-1 py-1 px-1.5 rounded-xl transition ${
                 activeTab === 'progresso' ? 'text-emerald-400 bg-slate-900/60' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <span className="text-lg">📈</span>
-              <span className="text-[10px] mt-0.5 font-semibold">Progresso</span>
+              <span className="text-[9px] mt-0.5 font-bold">Progresso</span>
+            </button>
+
+            {/* TAB INFERIOR MÓVEL DE NUTRIÇÃO */}
+            <button 
+              onClick={() => setActiveTab('nutricao')}
+              className={`flex flex-col items-center justify-center flex-1 py-1 px-1.5 rounded-xl transition ${
+                activeTab === 'nutricao' ? 'text-emerald-400 bg-slate-900/60' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span className="text-lg">🥗</span>
+              <span className="text-[9px] mt-0.5 font-bold">Nutrição</span>
             </button>
 
             <button 
               onClick={() => setActiveTab('coach')}
-              className={`flex flex-col items-center justify-center flex-1 py-1 px-2.5 rounded-xl transition ${
+              className={`flex flex-col items-center justify-center flex-1 py-1 px-1.5 rounded-xl transition ${
                 activeTab === 'coach' ? 'text-emerald-400 bg-slate-900/60' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <span className="text-lg">🤖</span>
-              <span className="text-[10px] mt-0.5 font-semibold">Coach</span>
+              <span className="text-[9px] mt-0.5 font-bold">Coach</span>
             </button>
 
             <button 
               onClick={() => setActiveTab('sync')}
-              className={`flex flex-col items-center justify-center flex-1 py-1 px-2.5 rounded-xl transition ${
+              className={`flex flex-col items-center justify-center flex-1 py-1 px-1.5 rounded-xl transition ${
                 activeTab === 'sync' ? 'text-emerald-400 bg-slate-900/60' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <span className="text-lg">🔄</span>
-              <span className="text-[10px] mt-0.5 font-semibold">Sincronizar</span>
+              <span className="text-[9px] mt-0.5 font-bold">Sync</span>
             </button>
           </div>
         </nav>
