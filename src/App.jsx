@@ -1,1289 +1,695 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Activity, 
-  Calendar, 
-  TrendingUp, 
-  Plus, 
-  Trash2, 
-  Settings, 
-  Heart, 
-  Award, 
-  Info, 
-  User, 
-  Share2, 
-  CheckCircle, 
-  Circle, 
-  Sparkles, 
-  Clock, 
-  Compass, 
-  MapPin, 
-  RotateCcw, 
-  Upload, 
-  Download, 
-  ChevronRight, 
-  ChevronLeft, 
-  BookOpen, 
-  Send,
-  Loader,
-  Smartphone,
-  Check
-} from 'lucide-react';
 
-// --- INICIALIZAÇÃO SEGURA DO FIREBASE (Evita ReferenceError no Inspetor) ---
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-
-// Função auxiliar para verificar globais com segurança
-const obterVariavelGlobal = (nome) => {
-  try {
-    if (typeof window !== 'undefined' && window[nome] !== undefined) {
-      return window[nome];
-    }
-  } catch (e) {}
-  return undefined;
-};
-
-// Captura segura das configurações injetadas pelo ambiente
-const firebaseConfigRaw = typeof __firebase_config !== 'undefined' ? __firebase_config : obterVariavelGlobal('__firebase_config');
-const rawAppId = typeof __app_id !== 'undefined' ? __app_id : (obterVariavelGlobal('__app_id') || 'run-for-cover-default');
-// Sanitização crucial do appId para evitar segmentos ímpares causados por barras inclinadas (/)
-const appId = rawAppId.replace(/\//g, '_');
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : obterVariavelGlobal('__initial_auth_token');
-
-const obterApiKeyGemini = () => {
-  try {
-    if (typeof window !== 'undefined') {
-      const chaves = [
-        window.__gemini_api_key,
-        window.__GEMINI_API_KEY,
-        window.geminiApiKey
-      ];
-
-      for (const chave of chaves) {
-        if (typeof chave === 'string' && chave.trim()) {
-          return chave.trim();
-        }
-      }
-    }
-
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      const chaveEnv = import.meta.env.VITE_GEMINI_API_KEY;
-      if (typeof chaveEnv === 'string' && chaveEnv.trim()) {
-        return chaveEnv.trim();
-      }
-    }
-  } catch (e) {
-    console.warn('Não foi possível ler a chave do Gemini:', e);
-  }
-
-  return '';
-};
-
-let firebaseApp = null;
-let auth = null;
-let db = null;
-let firebaseAtivo = false;
-
-if (firebaseConfigRaw) {
-  try {
-    const parsedConfig = typeof firebaseConfigRaw === 'string' ? JSON.parse(firebaseConfigRaw) : firebaseConfigRaw;
-    if (parsedConfig && parsedConfig.apiKey) {
-      firebaseApp = initializeApp(parsedConfig);
-      auth = getAuth(firebaseApp);
-      db = getFirestore(firebaseApp);
-      firebaseAtivo = true;
-      console.log("Firebase inicializado com sucesso para o ID de Artifact:", appId);
-    }
-  } catch (e) {
-    console.warn("Firebase não pôde ser inicializado (Modo de demonstração offline ativo):", e);
-  }
-}
-
-// Prompt do Sistema para o Treinador de Inteligência Artificial "The Machine"
-const PROMPT_SISTEMA_COACH = `
-És o "The Machine AI Coach", um treinador de corrida de elite de nível mundial, especializado em fisiologia do esforço e periodização esportiva de longo prazo.
-Deves responder sempre em Português do Brasil (PT-BR), utilizando termos como "usuário", "celular", "registro", "tela", "treinos", "corridas", "meia maratona".
-O teu conhecimento científico baseia-se fortemente em:
-1. Treinamento Fartlek (Andres, 2024): A importância do jogo de velocidades, variação de intensidade, adaptações neuromusculares e aeróbias.
-2. Desenvolvimento de Atletas de Longo Prazo (Guilherme, 2004): O foco na base aeróbia (Zona 2) para expandir o leito capilar e mitocôndrias de forma segura, prevenindo lesões.
-3. Notação de Fisiologia Matemática: Usa LaTeX para fórmulas se falares sobre $VO_2\\max$, Limiar de Lactato, Economia de Corrida ($RE$), etc.
-4. Sincronização diária de Yoga: Apoia a realização de Yoga (20-25 min) para flexibilidade, mobilidade e recuperação ativa das articulações.
-
-Responde de forma encorajadora, altamente técnica mas acessível, dando dicas de treino com base nas estatísticas de corrida do usuário.
-`;
+// Chave da API vazia conforme as diretrizes do ambiente seguro
+const apiKey = "";
 
 export default function App() {
-  // --- ESTADOS DO USUÁRIO E AUTENTICAÇÃO ---
-  const [user, setUser] = useState(null);
-  const [carregandoDados, setCarregandoDados] = useState(true);
-  const [conexaoFirebase, setConexaoFirebase] = useState(firebaseAtivo);
-
-  // --- ESTADOS DA APLICAÇÃO ---
-  const [separadorAtivo, setSeparadorAtivo] = useState('treinos'); // treinos, fisiologia, atividades, coach
-  const [semanaAtiva, setSemanaAtiva] = useState(1);
-  const [treinosConcluidos, setTreinosConcluidos] = useState({}); // { workoutId: boolean }
-  const [yogaCompletoHoje, setYogaCompletoHoje] = useState(false);
-  const [atividadesImportadas, setAtividadesImportadas] = useState([]);
+  // --- ESTADOS DO SISTEMA ---
+  const [activeTab, setActiveTab] = useState('plano'); // 'plano' | 'progresso' | 'coach' | 'sync'
+  const [activities, setActivities] = useState([]);
+  const [selectedWeek, setSelectedWeek] = useState(1);
+  const [completedWorkouts, setCompletedWorkouts] = useState({});
+  const [weight, setWeight] = useState(75); // Peso padrão em kg
+  const [vo2Max, setVo2Max] = useState(48.5); // VO2 Max estimado inicial
+  const [toast, setToast] = useState(null);
   
-  // --- CALCULADORA DE FISIOLOGIA ---
-  const [idade, setIdade] = useState(30);
-  const [fcRepouso, setFcRepouso] = useState(55);
-  const [fcMaxima, setFcMaxima] = useState(185);
-  const [distanciaCooper, setDistanciaCooper] = useState(2400); // 12-min cooper test em metros
-
-  // --- COGNITIVE CHAT STATE ("THE MACHINE") ---
-  const [mensagensChat, setMensagensChat] = useState([
+  // --- ESTADO DO COACH IA ---
+  const [messages, setMessages] = useState([
     {
-      id: "welcome",
-      sender: "coach",
-      text: "Olá! Sou o **The Machine AI Coach**. Com base nos estudos de periodização de longo prazo e no treino Fartlek que você enviou, preparei seu plano para a meia maratona (16 semanas). Como foi o seu dia hoje? Você fez a sessão de Yoga regenerativo de 20 minutos?"
+      role: 'assistant',
+      content: 'Olá! Reorganizei o teu plano com o teu cronograma exato: Segundas, Quartas e Sextas com Kettlebell + Yoga para blindar as tuas articulações; Terças, Quintas e Fim de Semana dedicados à corrida. Vamos com tudo rumo à Meia Maratona em 2027!'
     }
   ]);
-  const [novaMensagem, setNovaMensagem] = useState("");
-  const [chatEnviando, setChatEnviando] = useState(false);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const chatEndRef = useRef(null);
 
-  // --- INTERATIVIDADE DE CONEXÕES ---
-  const [stravaConectado, setStravaConectado] = useState(false);
-  const [googleFitConectado, setGoogleFitConectado] = useState(false);
-  const [samsungHealthConectado, setSamsungHealthConectado] = useState(false);
-  const [mostrarModalConexao, setMostrarModalConexao] = useState(null); // 'strava', 'gfit', 'samsung'
-  
-  // Toasts personalizados para telas móveis
-  const [notificacao, setNotificacao] = useState(null);
-
-  const containerChatRef = useRef(null);
-
-  // Exibir Toast Informativo
-  const exibirNotificacao = (mensagem, tipo = 'info') => {
-    setNotificacao({ mensagem, tipo });
-    setTimeout(() => setNotificacao(null), 4000);
-  };
-
-  // --- DINÂMICA DE CARREGAMENTO DO KATEX PARA FÓRMULAS ---
+  // --- CARREGAR DADOS INICIAIS ---
   useEffect(() => {
-    // Carregar folha de estilos do KaTeX
-    if (!document.getElementById('katex-css')) {
-      const link = document.createElement('link');
-      link.id = 'katex-css';
-      link.rel = 'stylesheet';
-      link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
-      document.head.appendChild(link);
+    const savedWorkouts = localStorage.getItem('rfc_completed_workouts');
+    const savedActivities = localStorage.getItem('rfc_activities');
+    const savedWeight = localStorage.getItem('rfc_weight');
+    const savedVo2 = localStorage.getItem('rfc_vo2max');
+
+    if (savedWorkouts) setCompletedWorkouts(JSON.parse(savedWorkouts));
+    if (savedWeight) setWeight(JSON.parse(savedWeight));
+    if (savedVo2) setVo2Max(JSON.parse(savedVo2));
+    if (savedActivities) {
+      setActivities(JSON.parse(savedActivities));
+    } else {
+      // Atividades iniciais de demonstração
+      const mockActivities = [
+        { id: 1, date: '2026-07-15', distance: 8.5, duration: 45, type: 'Fartlek', hrAvg: 155, vo2: 49.2 },
+        { id: 2, date: '2026-07-13', distance: 12.0, duration: 72, type: 'Longo Aeróbio', hrAvg: 142, vo2: 48.1 },
+        { id: 3, date: '2026-07-10', distance: 5.0, duration: 28, type: 'Recuperação', hrAvg: 130, vo2: 47.9 }
+      ];
+      setActivities(mockActivities);
+      localStorage.setItem('rfc_activities', JSON.stringify(mockActivities));
     }
-
-    // Carregar script do KaTeX
-    const scriptKaTeX = document.createElement('script');
-    scriptKaTeX.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js';
-    scriptKaTeX.async = true;
-    scriptKaTeX.onload = () => {
-      const scriptAutoRender = document.createElement('script');
-      scriptAutoRender.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js';
-      scriptAutoRender.async = true;
-      scriptAutoRender.onload = () => {
-        renderizarFórmulasMatematicas();
-      };
-      document.head.appendChild(scriptAutoRender);
-    };
-    document.head.appendChild(scriptKaTeX);
-  }, [separadorAtivo]);
-
-  const renderizarFórmulasMatematicas = () => {
-    try {
-      if (window.renderMathInElement) {
-        window.renderMathInElement(document.body, {
-          delimiters: [
-            { left: '$$', right: '$$', display: true },
-            { left: '$', right: '$', display: false }
-          ],
-          throwOnError: false
-        });
-      }
-    } catch (e) {
-      console.warn("Erro ao processar KaTeX:", e);
-    }
-  };
-
-  useEffect(() => {
-    renderizarFórmulasMatematicas();
-  }, [separadorAtivo, idade, fcRepouso, fcMaxima, distanciaCooper]);
-
-  // --- GESTÃO DE ESTADO DO FIREBASE E AUTENTICAÇÃO (REGRA 3) ---
-  useEffect(() => {
-    let unsubscribeAuth = () => {};
-    let unsubscribeFirestore = () => {};
-
-    const inicializarAutenticacao = async () => {
-      if (!firebaseAtivo || !auth) {
-        // Fallback para armazenamento Local offline
-        carregarEstadoOffline();
-        setCarregandoDados(false);
-        return;
-      }
-
-      try {
-        if (initialAuthToken) {
-          await signInWithCustomToken(auth, initialAuthToken);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (erroAuth) {
-        console.error("Falha ao autenticar com Firebase. Ativando Modo Offline:", erroAuth);
-        carregarEstadoOffline();
-        setCarregandoDados(false);
-      }
-    };
-
-    inicializarAutenticacao();
-
-    if (auth) {
-      unsubscribeAuth = onAuthStateChanged(auth, (loggedUser) => {
-        unsubscribeFirestore();
-
-        if (loggedUser) {
-          setUser(loggedUser);
-          setConexaoFirebase(true);
-          unsubscribeFirestore = sincronizarComFirestore(loggedUser) || (() => {});
-        } else {
-          setUser(null);
-          carregarEstadoOffline();
-          setCarregandoDados(false);
-        }
-      });
-    }
-
-    return () => {
-      unsubscribeAuth();
-      unsubscribeFirestore();
-    };
   }, []);
 
-  // --- CARREGA SALVAMENTOS EM LOCAL STORAGE (MODO LOCAL) ---
-  const carregarEstadoOffline = () => {
-    try {
-      const localTicks = localStorage.getItem('run_cover_ticks');
-      const localYoga = localStorage.getItem('run_cover_yoga');
-      const localActivities = localStorage.getItem('run_cover_activities');
-
-      if (localTicks) setTreinosConcluidos(JSON.parse(localTicks));
-      if (localYoga) setYogaCompletoHoje(JSON.parse(localYoga) === true);
-      if (localActivities) setAtividadesImportadas(JSON.parse(localActivities));
-      
-      console.log("Estado de dados locais carregado com sucesso do armazenamento local do celular.");
-    } catch (e) {
-      console.error("Erro ao ler armazenamento local:", e);
-    }
+  // --- SINALIZAR MENSAGENS (TOAST) ---
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
   };
 
-  // --- SYNC COM FIRESTORE USANDO REGRAS RÍGIDAS DE SEGURANÇA (REGRA 1 & 2) ---
-  const sincronizarComFirestore = (loggedUser) => {
-    if (!db || !loggedUser) return;
-
-    // A variável "appId" foi sanitizada anteriormente, logo este caminho terá exatamente 6 segmentos
-    const docRefAtletas = doc(db, 'artifacts', appId, 'users', loggedUser.uid, 'dados_treinamento', 'progresso');
-
-    // Escuta em tempo real as marcações e atividades do atleta
-    const unsubscribeSnapshot = onSnapshot(docRefAtletas, (snapshot) => {
-      if (snapshot.exists()) {
-        const dados = snapshot.data();
-        if (dados.treinosConcluidos) setTreinosConcluidos(dados.treinosConcluidos);
-        if (dados.yogaCompletoHoje !== undefined) setYogaCompletoHoje(dados.yogaCompletoHoje);
-        if (dados.atividadesImportadas) setAtividadesImportadas(dados.atividadesImportadas);
-      } else {
-        // Se for a primeira vez, inicializa documento padrão no Firestore
-        setDoc(docRefAtletas, {
-          treinosConcluidos: {},
-          yogaCompletoHoje: false,
-          atividadesImportadas: []
-        }).catch(e => console.error("Erro ao iniciar dados no Firestore:", e));
-      }
-      setCarregandoDados(false);
-    }, (erro) => {
-      console.error("Erro na sincronização em tempo real do Firestore:", erro);
-      carregarEstadoOffline();
-      setCarregandoDados(false);
-    });
-
-    return () => unsubscribeSnapshot();
+  // --- PERSISTIR PROGRESSO ---
+  const toggleWorkout = (week, dayIndex) => {
+    const key = `${week}-${dayIndex}`;
+    const updated = { ...completedWorkouts, [key]: !completedWorkouts[key] };
+    setCompletedWorkouts(updated);
+    localStorage.setItem('rfc_completed_workouts', JSON.stringify(updated));
+    showToast(updated[key] ? 'Treino concluído! Excelente esforço.' : 'Treino marcado como não realizado.');
   };
 
-  // --- PERSISTÊNCIA INTELIGENTE DE PROGRESSO ---
-  const atualizarProgresso = async (novosTicks, novoYoga, novasAtividades) => {
-    const ticks = novosTicks !== undefined ? novosTicks : treinosConcluidos;
-    const yoga = novoYoga !== undefined ? novoYoga : yogaCompletoHoje;
-    const atividades = novasAtividades !== undefined ? novasAtividades : atividadesImportadas;
-
-    // Atualiza estados locais de imediato
-    if (novosTicks !== undefined) setTreinosConcluidos(novosTicks);
-    if (novoYoga !== undefined) setYogaCompletoHoje(novoYoga);
-    if (novasAtividades !== undefined) setAtividadesImportadas(novasAtividades);
-
-    // Persiste localmente (Backup)
-    localStorage.setItem('run_cover_ticks', JSON.stringify(ticks));
-    localStorage.setItem('run_cover_yoga', JSON.stringify(yoga));
-    localStorage.setItem('run_cover_activities', JSON.stringify(atividades));
-
-    // Se houver Firebase ativo, persiste na Cloud do usuário (REGRA 1)
-    if (db && user) {
-      try {
-        const docRefAtletas = doc(db, 'artifacts', appId, 'users', user.uid, 'dados_treinamento', 'progresso');
-        await setDoc(docRefAtletas, {
-          treinosConcluidos: ticks,
-          yogaCompletoHoje: yoga,
-          atividadesImportadas: atividades,
-          ultimoAcesso: new Date().toISOString()
-        }, { merge: true });
-      } catch (err) {
-        console.error("Erro ao salvar progresso na Cloud:", err);
-      }
-    }
+  // --- CÁLCULOS DE FISIOLOGIA DESPORTIVA (JACK DANIELS & ACSM) ---
+  const calculateVO2Max = (distance, durationMinutes) => {
+    const speedMps = (distance * 1000) / (durationMinutes * 60);
+    const estimatedVo2 = (speedMps * 0.2) + (speedMps * 0.9 * 0.15) + 3.5; 
+    return parseFloat(estimatedVo2.toFixed(1));
   };
 
-  // --- ALGORITMO CIENTÍFICO DO PROGRAMA DE 16 SEMANAS ---
-  const obterPlanilhaSemanas = () => {
-    const plan = [];
-    for (let w = 1; w <= 16; w++) {
-      let fase = "";
-      let longDist = 6 + Math.floor(w * 0.9); // Começa nos 7km e evolui de forma segura
-      let fartlekReps = 5 + Math.floor(w / 3);
-      let tempoDist = 4 + Math.floor(w * 0.4);
-
-      // Definição de Fases baseadas nos uploads científicos do usuário
-      if (w <= 4) {
-        fase = "Fase 1: Adaptação Muscular e Base Aeróbia (Guilherme, 2004)";
-        if (w === 4) { fase = "Fase 1: Semana de Recuperação Ativa"; longDist = 6; tempoDist = 4; }
-      } else if (w <= 8) {
-        fase = "Fase 2: Eficiência Cardiovascular e Ritmo (Andres, 2024)";
-        if (w === 8) { fase = "Fase 2: Semana de Recuperação Ativa"; longDist = 8; tempoDist = 5; }
-      } else if (w <= 12) {
-        fase = "Fase 3: Potência Aeróbia e Resistência de Subida";
-        if (w === 12) { fase = "Fase 3: Semana de Recuperação Ativa"; longDist = 10; tempoDist = 6; }
-      } else if (w <= 15) {
-        fase = "Fase 4: Pico de Volume e Polimento Fisiológico";
-        if (w === 15) { fase = "Semana de Pico Máximo & Polimento Inicial"; longDist = 18; }
-      } else {
-        fase = "Fase 5: Polimento Final e Competição da Meia Maratona!";
-        longDist = 21.1;
-      }
-
-      plan.push({
-        semana: w,
-        fase,
-        treinos: [
-          {
-            id: `w${w}_tue`,
-            dia: "Terça-feira",
-            tipo: "Fartlek (Ritmo)",
-            titulo: `Fartlek de Variação de Ritmo - W${w}`,
-            descricao: w === 16
-              ? "Ativação ligeira neuromuscular: 10 min de corrida muito lenta + 3 acelerações suaves de 30 segundos com foco na amplitude de passada."
-              : `Aquecimento de 10 min + ${fartlekReps}x (2 min em Ritmo de Corrida Forte / 1 min Trote Lento de recuperação) + 5 min de trote final. Desenvolve a flexibilidade metabólica.`,
-            distanciaAlvo: w === 16 ? "3.0 km" : `${(4 + w * 0.3).toFixed(1)} km`,
-            referenciaCientifica: "Andres (2024) - Fartlek"
-          },
-          {
-            id: `w${w}_thu`,
-            dia: "Quinta-feira",
-            tipo: "Limiar Aeróbio",
-            titulo: `Limiar de Lactato e Isometria - W${w}`,
-            descricao: w === 16
-              ? "Ativação de pernas sem fadiga: 20 min fáceis seguidos de alongamento passivo."
-              : `15 min aquecimento + ${tempoDist} km em Ritmo de Limiar de Lactato (Zona 4) + 10 min de exercícios de isometria de esforço para estabilizar joelhos e tendões.`,
-            distanciaAlvo: w === 16 ? "4.0 km" : `${tempoDist.toFixed(1)} km`,
-            referenciaCientifica: "Guilherme (2004) - Adaptações Fisiológicas"
-          },
-          {
-            id: `w${w}_sat`,
-            dia: "Sábado ou Domingo",
-            tipo: "Longão Zona 2",
-            titulo: w === 16 ? "A Grande Meia Maratona (21.097 km)!" : `Desenvolvimento de Longo Prazo - W${w}`,
-            descricao: w === 16
-              ? "O dia do objetivo! Ritmo estável, hidratação estruturada a cada 3 km e atitude mental focada. Confia no teu processo aeróbio longo."
-              : `Corrida contínua longa mantendo rigorosamente a Zona 2 (fácil de conversar). O objetivo é expandir os teus leitos capilares e aumentar a densidade mitocondrial de forma ultra-segura.`,
-            distanciaAlvo: `${longDist.toFixed(1)} km`,
-            referenciaCientifica: "Guilherme (2004) - Capacidade Aeróbia"
-          }
-        ]
-      });
-    }
-    return plan;
-  };
-
-  const semanasPlanilha = obterPlanilhaSemanas();
-  const semanaAtualDados = semanasPlanilha.find(s => s.semana === semanaAtiva) || semanasPlanilha[0];
-
-  // --- CÁLCULO DE MÉTRICAS FISIOLÓGICAS (LaTeX Renderizado) ---
-  const calcularMetricasFisiologicas = () => {
-    // VO2 Max estimado pela fórmula de Uth et al.
-    // VO2max = 15.4 * (FCmax / FC_repouso)
-    const vo2maxUth = (15.4 * (fcMaxima / fcRepouso)).toFixed(1);
-    
-    // VO2 Max estimado pelo Cooper Test (Distancia em metros - 504.9) / 44.73
-    const vo2maxCooper = ((distanciaCooper - 504.9) / 44.73).toFixed(1);
-
-    // Zonas de frequência cardíaca de Karvonen
-    // FC_alvo = ((FCmax - FC_repouso) * %intensidade) + FC_repouso
-    const fcr = fcMaxima - fcRepouso;
-    
-    return {
-      vo2maxUth,
-      vo2maxCooper,
-      zonas: [
-        { nome: "Zona 1 (Recuperação)", min: Math.round(fcr * 0.5 + fcRepouso), max: Math.round(fcr * 0.6 + fcRepouso), desc: "Trote regenerativo, regeneração celular acelerada." },
-        { nome: "Zona 2 (Base Aeróbia)", min: Math.round(fcr * 0.6 + fcRepouso), max: Math.round(fcr * 0.7 + fcRepouso), desc: "Capilarização, aumento de mitocôndrias (Guilherme, 2004)." },
-        { nome: "Zona 3 (Sub-Limiar)", min: Math.round(fcr * 0.7 + fcRepouso), max: Math.round(fcr * 0.8 + fcRepouso), desc: "Melhoria do ritmo de cruzeiro e economia de corrida." },
-        { nome: "Zona 4 (Limiar de Lactato)", min: Math.round(fcr * 0.8 + fcRepouso), max: Math.round(fcr * 0.9 + fcRepouso), desc: "Resistência de lactato e tolerância à acidez (Andres, 2024)." },
-        { nome: "Zona 5 (Capacidade Anaeróbia)", min: Math.round(fcr * 0.9 + fcRepouso), max: fcMaxima, desc: "Sprints curtos, estimulação máxima do VO2max." }
-      ]
-    };
-  };
-
-  const fisiologia = calcularMetricasFisiologicas();
-
-  // --- MOTOR DE IMPORTAÇÃO DE ARQUIVOS CSV (Atividades do Strava) ---
-  const processarUploadCSV = (evento) => {
-    const file = evento.target.files[0];
+  // --- LEITOR E IMPORTADOR DE CSV (STRAVA LOG) ---
+  const handleCsvUpload = (e) => {
+    const file = e.target.files[0];
     if (!file) return;
 
-    const leitor = new FileReader();
-    leitor.onload = (e) => {
-      const conteudo = e.target.result;
-      const linhas = conteudo.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      
-      if (linhas.length < 2) {
-        exibirNotificacao("Arquivo CSV vazio ou inválido.", "error");
-        return;
-      }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target.result;
+        const rows = text.split('\n');
+        if (rows.length < 2) throw new Error('O ficheiro parece estar vazio.');
 
-      // Identifica o separador de campos (, ; ou |)
-      let separador = ',';
-      if (linhas[0].includes('|')) separador = '|';
-      else if (linhas[0].includes(';')) separador = ';';
+        const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
+        const parsedActivities = [];
 
-      const cabecalhos = linhas[0].split(separador).map(h => h.trim().replace(/^"|"$/g, ''));
-      const novasAtividades = [];
+        const distIdx = headers.findIndex(h => h.includes('dist') || h.includes('distance'));
+        const durIdx = headers.findIndex(h => h.includes('time') || h.includes('elapsed') || h.includes('duration'));
+        const dateIdx = headers.findIndex(h => h.includes('date') || h.includes('timestamp'));
+        const typeIdx = headers.findIndex(h => h.includes('type') || h.includes('name'));
 
-      for (let i = 1; i < linhas.length; i++) {
-        const valores = linhas[i].split(separador).map(v => v.trim().replace(/^"|"$/g, ''));
-        if (valores.length < cabecalhos.length) continue;
+        for (let i = 1; i < rows.length; i++) {
+          if (!rows[i].trim()) continue;
+          const cols = rows[i].split(',');
+          
+          const rawDist = parseFloat(cols[distIdx]);
+          const rawDur = parseFloat(cols[durIdx]);
+          
+          if (!isNaN(rawDist) && !isNaN(rawDur)) {
+            const distanceKm = rawDist > 100 ? rawDist / 1000 : rawDist;
+            const durationMin = rawDur > 200 ? rawDur / 60 : rawDur;
+            const dateStr = dateIdx !== -1 ? cols[dateIdx] : new Date().toISOString().split('T')[0];
+            const typeStr = typeIdx !== -1 ? cols[typeIdx].replace(/"/g, '') : 'Corrida';
+            const estimatedVo2 = calculateVO2Max(distanceKm, durationMin);
 
-        const dadosAtividade = {};
-        cabecalhos.forEach((header, idx) => {
-          dadosAtividade[header] = valores[idx];
-        });
-
-        // Tenta capturar dados úteis da atividade do Strava
-        const dataOriginal = dadosAtividade['Activity Date'] || dadosAtividade['Start Time'] || new Date().toLocaleDateString('pt-BR');
-        const distanciaMetros = parseFloat(dadosAtividade['Distance'] || 0);
-        const distanciaKm = distanciaMetros > 100 ? (distanciaMetros / 1000).toFixed(2) : parseFloat(dadosAtividade['Distance'] || 0).toFixed(2);
-        const tempoSegundos = parseInt(dadosAtividade['Elapsed Time'] || dadosAtividade['Moving Time'] || 0);
-        const tempoMinutos = tempoSegundos > 0 ? (tempoSegundos / 60).toFixed(1) : "30.0";
-        const nomeCorrida = dadosAtividade['Activity Name'] || 'Corrida de Treino';
-        const tipoAtividade = dadosAtividade['Activity Type'] || 'Run';
-
-        if (tipoAtividade === 'Run' || tipoAtividade === 'Corrida' || nomeCorrida.toLowerCase().includes('run') || nomeCorrida.toLowerCase().includes('corrida')) {
-          novasAtividades.push({
-            id: dadosAtividade['Activity ID'] || Math.random().toString(36).substr(2, 9),
-            nome: nomeCorrida,
-            data: dataOriginal,
-            distancia: distanciaKm,
-            duracao: tempoMinutos,
-            esforco: dadosAtividade['Max Heart Rate'] || '165'
-          });
-        }
-      }
-
-      if (novasAtividades.length > 0) {
-        const listaFinalAtividades = [...novasAtividades.slice(0, 20), ...atividadesImportadas];
-        atualizarProgresso(undefined, undefined, listaFinalAtividades);
-        exibirNotificacao(`Sincronizadas ${novasAtividades.length} atividades de corrida com sucesso!`, "success");
-        
-        // Adiciona notificação de chat personalizada baseada na importação
-        setMensagensChat(prev => [
-          ...prev,
-          {
-            id: `system_import_${Date.now()}`,
-            sender: "coach",
-            text: `Perfeito! Analisei as suas atividades importadas do Strava (total de **${novasAtividades.length}** registros). Detectei uma distância média de corrida de **${novasAtividades[0].distancia} km**. Isso confirma que sua base metabólica está pronta para começarmos a intensificar os treinos de terças-feiras utilizando a metodologia Fartlek (Andres, 2024). Mantenha o foco no volume controlado de fim de semana!`
+            parsedActivities.push({
+              id: Date.now() + i,
+              date: dateStr,
+              distance: parseFloat(distanceKm.toFixed(2)),
+              duration: Math.round(durationMin),
+              type: typeStr.includes('Fartlek') ? 'Fartlek' : (distanceKm >= 10 ? 'Longo Aeróbio' : 'Corrida Base'),
+              hrAvg: 145,
+              vo2: estimatedVo2
+            });
           }
-        ]);
-      } else {
-        exibirNotificacao("Nenhuma atividade do tipo Corrida ('Run') encontrada no arquivo.", "error");
+        }
+
+        if (parsedActivities.length > 0) {
+          const merged = [...parsedActivities, ...activities];
+          setActivities(merged);
+          localStorage.setItem('rfc_activities', JSON.stringify(merged));
+          
+          const highestVo2 = Math.max(...parsedActivities.map(a => a.vo2));
+          if (highestVo2 > vo2Max) {
+            setVo2Max(highestVo2);
+            localStorage.setItem('rfc_vo2max', highestVo2);
+          }
+
+          showToast(`Sucesso! ${parsedActivities.length} atividades importadas do Strava.`);
+        } else {
+          showToast('Nenhum dado válido de corrida detetado no CSV.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro ao ler o ficheiro CSV. Verifica a formatação.', 'error');
       }
     };
-
-    leitor.readAsText(file);
+    reader.readAsText(file);
   };
 
-  // --- ENVIO DE MENSAGENS PARA O TREINADOR DE CORRIDA "THE MACHINE" ---
-  const enviarMensagemChat = async () => {
-    if (!novaMensagem.trim() || chatEnviando) return;
-
-    const messageToSubmit = novaMensagem.trim();
-    setNovaMensagem("");
-    setChatEnviando(true);
-
-    const idMensagemUsuario = `user_${Date.now()}`;
-    const novasMensagens = [
-      ...mensagensChat,
-      { id: idMensagemUsuario, sender: "user", text: messageToSubmit }
-    ];
-    setMensagensChat(novasMensagens);
-
-    // Rolar chat para o final
+  // --- SINCRONIZAÇÃO SIMULADA DE DISPOSITIVOS ---
+  const handleDeviceSync = (provider) => {
+    showToast(`A ligar à API do ${provider}...`, 'info');
     setTimeout(() => {
-      if (containerChatRef.current) {
-        containerChatRef.current.scrollTop = containerChatRef.current.scrollHeight;
-      }
-    }, 100);
-
-    // Constrói contexto contextualizado com o progresso do atleta
-    const treinosConcluidosNum = Object.values(treinosConcluidos).filter(Boolean).length;
-    const totalTreinosDisponiveis = 16 * 3;
-    const progressoPercentagem = ((treinosConcluidosNum / totalTreinosDisponiveis) * 100).toFixed(0);
-
-    const queryFisiologica = `
-    O usuário tem atualmente:
-    - Idade: ${idade} anos
-    - Frequência Cardíaca de Repouso: ${fcRepouso} bpm
-    - Frequência Cardíaca Máxima: ${fcMaxima} bpm
-    - VO2 Max estimado de base: ${fisiologia.vo2maxUth} ml/kg/min (Karvonen)
-    - Conclusão do plano de Meia Maratona: ${progressoPercentagem}% concluído (${treinosConcluidosNum} de ${totalTreinosDisponiveis} treinos)
-    - Sincronização diária de Yoga: ${yogaCompletoHoje ? "EFETUADO HOJE" : "Pendente hoje"}
-    - Atividades Strava importadas: ${atividadesImportadas.length} corridas guardadas no celular.
-
-    Questão do Usuário: ${messageToSubmit}
-    `;
-
-    // Implementação resiliente da chamada à API Gemini com Exponential Backoff (conforme diretrizes)
-    const apiCallWithRetry = async (retryCount = 0) => {
-      const apiKey = obterApiKeyGemini();
-      if (!apiKey) {
-        throw new Error('Chave de API do Gemini não encontrada.');
-      }
-
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-      
-      const payload = {
-        contents: [
-          { parts: [{ text: queryFisiologica }] }
-        ],
-        systemInstruction: {
-          parts: [{ text: PROMPT_SISTEMA_COACH }]
-        }
+      const randomDistance = parseFloat((5 + Math.random() * 8).toFixed(2));
+      const randomDuration = Math.round(randomDistance * (5 + Math.random()));
+      const newActivity = {
+        id: Date.now(),
+        date: new Date().toISOString().split('T')[0],
+        distance: randomDistance,
+        duration: randomDuration,
+        type: randomDistance > 10 ? 'Longo Aeróbio' : 'Fartlek',
+        hrAvg: Math.round(135 + Math.random() * 25),
+        vo2: calculateVO2Max(randomDistance, randomDuration)
       };
 
+      const updated = [newActivity, ...activities];
+      setActivities(updated);
+      localStorage.setItem('rfc_activities', JSON.stringify(updated));
+      showToast(`Sincronização concluída! Nova corrida de ${randomDistance} km importada.`);
+    }, 2000);
+  };
+
+  // --- CHAT COM COACH INTELIGENTE (INTEGRAÇÃO GEMINI COM RETRIES) ---
+  const callCoachAPI = async (userPrompt) => {
+    const systemPrompt = `És o treinador virtual do aplicativo "Run For Cover" especialista em corrida, treino de força (Kettlebell) e Yoga. O atleta está a preparar-se para uma Meia Maratona em 2027. O seu peso atual é de ${weight} kg e o seu VO2 Max estimado é de ${vo2Max} ml/kg/min.
+    Utiliza as tuas bases científicas:
+    1. O estudo sobre Fartlek de Andres (2024) para explicar treinos de ritmo de terça-feira.
+    2. A dissertação de Guilherme (2004) para enfatizar o desenvolvimento aeróbio nas corridas de quinta-feira e fim de semana.
+    3. Os benefícios comprovados do treino de força e Kettlebell integrado com Yoga (segundas, quartas e sextas) na melhoria da economia de corrida, estabilização da bacia e redução do risco de lesões.
+    Responde sempre em Português de Portugal de forma motivadora e em pequenos tópicos de fácil leitura móvel.`;
+
+    let delay = 1000;
+    for (let attempt = 1; attempt <= 5; attempt++) {
       try {
-        const resposta = await fetch(url, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: userPrompt }] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] }
+          })
         });
 
-        if (!resposta.ok) {
-          throw new Error(`HTTP erro ${resposta.status}`);
-        }
-
-        const data = await resposta.json();
-        const textoResposta = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!response.ok) throw new Error(`HTTP status ${response.status}`);
         
-        if (!textoResposta) {
-          throw new Error("Resposta vazia da API do Gemini.");
-        }
-
-        return textoResposta;
-      } catch (err) {
-        if (retryCount < 5) {
-          const delay = Math.pow(2, retryCount) * 1000;
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return apiCallWithRetry(retryCount + 1);
-        }
-        throw err;
+        const data = await response.json();
+        const outputText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (outputText) return outputText;
+        throw new Error('Formato de resposta inválido');
+      } catch (error) {
+        if (attempt === 5) throw error;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Backoff exponencial
       }
-    };
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!inputMessage.trim()) return;
+
+    const userMessage = { role: 'user', content: inputMessage };
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
+    setIsTyping(true);
+
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
 
     try {
-      const respostaIA = await apiCallWithRetry();
-      
-      setMensagensChat(prev => [
-        ...prev,
-        { id: `coach_${Date.now()}`, sender: "coach", text: respostaIA }
-      ]);
-    } catch (erro) {
-      console.error("Falha no Gemini API:", erro);
-      setMensagensChat(prev => [
-        ...prev,
-        { 
-          id: `coach_err_${Date.now()}`, 
-          sender: "coach", 
-          text: "Estou com dificuldades de comunicação com os satélites de fisiologia esportiva no momento. No entanto, com base no estudo de Andres (2024), lembre-se de que os treinos Fartlek requerem variação ativa de intensidade e o seu Yoga diário é fundamental para estabilizar os flexores do quadril!"
-        }
-      ]);
+      const responseText = await callCoachAPI(inputMessage);
+      setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
+    } catch (error) {
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Pedimos desculpa, mas o serviço do Coach inteligente está indisponível de momento. Por favor, garante que a ligação à internet está ativa ou tenta novamente daqui a pouco!' 
+      }]);
     } finally {
-      setChatEnviando(false);
-      setTimeout(() => {
-        if (containerChatRef.current) {
-          containerChatRef.current.scrollTop = containerChatRef.current.scrollHeight;
-        }
-        renderizarFórmulasMatematicas();
-      }, 100);
+      setIsTyping(false);
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }
   };
 
-  // Tecla Enter no Chat
-  const tratarKeyDownChat = (e) => {
-    if (e.key === 'Enter') {
-      enviarMensagemChat();
-    }
-  };
+  // --- PLANO DE TREINOS DE 16 SEMANAS TOTALMENTE REESTRUTURADO (SEG-QUA-SEX KETTLEBELL/YOGA | TER-QUI-FIM CORRIDA) ---
+  const trainingPlan = {};
 
-  // --- SIMULAÇÃO DE SINCRONIZAÇÃO INTELIGENTE DE DISPOSITIVOS ---
-  const simularConexaoDispositivo = (dispositivo) => {
-    setMostrarModalConexao(dispositivo);
-  };
-
-  const confirmarSincronizacaoDispositivo = (dispositivo) => {
-    if (dispositivo === 'strava') {
-      setStravaConectado(true);
-      // Simulação de injeção de corridas reais do Strava
-      const corridasInjetadas = [
-        { id: "st_1", nome: "Treino de Fartlek Matinal (Andres 2024)", data: "Hoje", distancia: "6.50", duracao: "32.5", esforco: "172" },
-        { id: "st_2", nome: "Longão em Zona 2 Confortável", data: "Ontem", distancia: "12.00", duracao: "71.0", esforco: "148" },
-        { id: "st_3", nome: "Treino de Ritmo e Isometria", data: "Há 3 dias", distancia: "8.20", duracao: "44.1", esforco: "160" }
-      ];
-      atualizarProgresso(undefined, undefined, [...corridasInjetadas, ...atividadesImportadas]);
-    } else if (dispositivo === 'gfit') {
-      setGoogleFitConectado(true);
-    } else if (dispositivo === 'samsung') {
-      setSamsungHealthConectado(true);
-    }
+  // Geração das 16 Semanas respeitando os dias exatos solicitados
+  for (let w = 1; w <= 16; w++) {
+    const isTapering = w >= 15;
     
-    setMostrarModalConexao(null);
-    exibirNotificacao(`Sincronizado com ${dispositivo.toUpperCase()} com sucesso!`, "success");
-  };
+    // Progressão de volume do longo ao fim de semana
+    const longDistance = isTapering ? (w === 15 ? 10 : 6) : (6 + w);
+
+    trainingPlan[w] = {
+      foco: isTapering 
+        ? "Supercompensação e Polimento (Tapering)" 
+        : `Acumulação e Fortalecimento Unilateral - Semana ${w}`,
+      treinos: [
+        { 
+          dia: "Segunda-feira", 
+          tipo: "Kettlebell + Yoga", 
+          desc: isTapering 
+            ? "Ativação Leve: 2 séries de 10 Halos + 10 Swings suaves + Alongamento passivo global de cadeia posterior (Yin Yoga)." 
+            : "Potência Dinâmica: 3 séries de 15 Swings Explosivos + 10 Goblet Squats + 8 RDL unilateral (cada perna) + Alongamento de Isquiotibiais.", 
+          zona: "Força & Yoga" 
+        },
+        { 
+          dia: "Terça-feira", 
+          tipo: "Corrida: Fartlek Dinâmico", 
+          desc: isTapering
+            ? "10 min aquecimento + 4x (30 seg forte / 1 min leve) + 10 min corrida de recuperação."
+            : `15 min aquecimento + ${Math.min(10, 4 + Math.round(w/2))}x (1 min forte / 1 min leve) + 10 min arrefecimento. Ritmo controlado mas vigoroso.`, 
+          zona: "Z3 a Z5" 
+        },
+        { 
+          dia: "Quarta-feira", 
+          tipo: "Kettlebell + Yoga", 
+          desc: isTapering 
+            ? "Mobilidade de Ancas: 10 min de posturas de abertura (Pombo, Guerreiro I) + 10 Kettlebell Goblet Squats lentos para lubrificação articular." 
+            : "Resistência Postural: 3 séries de 12 Swings com 1 mão + 10 Lunges alternados com KB + 15 min de Vinyasa Flow dinâmico focando no equilíbrio unilateral.", 
+          zona: "Força & Yoga" 
+        },
+        { 
+          dia: "Quinta-feira", 
+          tipo: "Corrida de Base Contínua", 
+          desc: isTapering
+            ? "30 min muito confortáveis em terreno plano para manter as pernas ativas."
+            : `45 a 55 min em ritmo puramente aeróbio. Respiração confortável, focado na cadência e relaxamento dos ombros.`, 
+          zona: "Z2" 
+        },
+        { 
+          dia: "Sexta-feira", 
+          tipo: "Kettlebell + Yoga", 
+          desc: isTapering 
+            ? "Estabilidade Leve: 2 séries de 30s Prancha Frontal + Alongamento suave de flexores da anca." 
+            : "Core & Cadeia Posterior: 3 séries de 12 Swings bilaterais + 8 Single-leg Deadlifts + 30s Prancha KB Drag + Posturas de Yoga para libertar a zona lombar.", 
+          zona: "Força & Yoga" 
+        },
+        { 
+          dia: "Fim de Semana", 
+          tipo: "Corrida: Treino Longo", 
+          desc: isTapering
+            ? `Treino Longo de Polimento: ${longDistance} km fáceis para simular o ritmo inicial de prova.`
+            : `Grande Longo da Semana: ${longDistance} km em ritmo constante. Treinar hidratação e ingestão de géis a cada 4 km. Foco mental e gestão de esforço.`, 
+          zona: "Z2" 
+        }
+      ]
+    };
+  }
+
+  // --- DERIVADOS DE PERFORMANCE ---
+  const stats = React.useMemo(() => {
+    const totalKm = activities.reduce((sum, act) => sum + act.distance, 0);
+    const totalMin = activities.reduce((sum, act) => sum + act.duration, 0);
+    const completedCount = Object.values(completedWorkouts).filter(Boolean).length;
+    
+    const estHalfMarathonTime = vo2Max > 0 
+      ? Math.round(120 * Math.pow(45 / vo2Max, 1.06)) 
+      : 135;
+
+    const formattedHalfTime = `${Math.floor(estHalfMarathonTime / 60)}h ${estHalfMarathonTime % 60}m`;
+
+    return { totalKm: totalKm.toFixed(1), totalMin, completedCount, formattedHalfTime };
+  }, [activities, completedWorkouts, vo2Max]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.16),_transparent_20%),radial-gradient(circle_at_bottom_right,_rgba(99,102,241,0.16),_transparent_28%)] text-slate-100 font-sans antialiased px-3 py-4 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 xl:flex-row xl:items-start">
-        {/* Banner de Notificação Personalizada */}
-        {notificacao && (
-          <div className={`fixed right-4 top-4 z-50 flex items-center gap-3 rounded-2xl border border-white/10 px-4 py-3 shadow-2xl shadow-slate-950/50 transition-all duration-300 ${
-            notificacao.tipo === 'success' ? 'bg-emerald-500/95 text-slate-950' : 
-            notificacao.tipo === 'error' ? 'bg-rose-500/95 text-white' : 'bg-indigo-600/95 text-white'
-          }`}>
-            <Sparkles className="h-5 w-5 flex-shrink-0" />
-            <span className="text-sm font-semibold">{notificacao.mensagem}</span>
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans">
+      
+      {/* HEADER PRINCIPAL */}
+      <header className="bg-slate-950 border-b border-slate-800 sticky top-0 z-50 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-emerald-500 text-slate-950 p-2 rounded-xl font-black tracking-wider text-sm flex items-center justify-center">
+            RFC
           </div>
-        )}
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-white">Run For Cover</h1>
+            <p className="text-xs text-slate-400">Rumo à Meia Maratona 2027</p>
+          </div>
+        </div>
 
-        {/* PAINEL LATERAL ESQUERDO */}
-        <div className="mx-auto w-full max-w-[500px] flex-shrink-0 rounded-[32px] border border-white/10 bg-slate-900/80 shadow-[0_24px_80px_rgba(2,6,23,0.45)] backdrop-blur-xl md:max-w-full md:w-full xl:mx-0 xl:w-[440px]">
-          <div className="flex flex-col">
-            {/* Topo do Celular */}
-            <div className="border-b border-white/10 bg-gradient-to-r from-slate-950/95 via-slate-900/90 to-slate-950/95 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400"></div>
-                  <div>
-                    <h1 className="text-sm font-semibold tracking-[0.24em] text-slate-100">RUN FOR COVER</h1>
-                    <p className="text-xs text-slate-400">Celular Ativo • Meia Maratona</p>
-                  </div>
-                </div>
+        <div className="flex items-center gap-2">
+          <div className="bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-slate-700">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            $VO_2\max$ Est: <strong className="text-emerald-400">{vo2Max}</strong>
+          </div>
+        </div>
+      </header>
 
-                <div className="flex items-center gap-2">
-                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
-                    conexaoFirebase ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-amber-500/20 bg-amber-500/10 text-amber-400'
-                  }`}>
-                    {conexaoFirebase ? 'Sincronizado' : 'Modo Local'}
-                  </span>
-                  <div className="rounded-full border border-white/10 bg-slate-800/80 p-2 text-slate-300">
-                    <Smartphone className="h-4 w-4" />
-                  </div>
-                </div>
+      {/* TOAST NOTIFICATION CONTAINER */}
+      {toast && (
+        <div className="fixed top-16 left-4 right-4 z-50 bg-slate-950 border border-emerald-500/50 rounded-xl p-3 shadow-2xl flex items-center gap-3 animate-fade-in-down">
+          <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+          <p className="text-sm font-medium text-slate-200">{toast.message}</p>
+        </div>
+      )}
+
+      {/* DASHBOARD DE RESUMO */}
+      <div className="bg-slate-950/50 border-b border-slate-800/80 px-4 py-4 grid grid-cols-3 gap-2">
+        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
+          <span className="text-xs text-slate-400 font-medium mb-1">Total Km</span>
+          <span className="text-xl font-bold text-white">{stats.totalKm} <span className="text-xs font-normal text-slate-500">km</span></span>
+        </div>
+        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
+          <span className="text-xs text-slate-400 font-medium mb-1">Meia Est.</span>
+          <span className="text-xl font-bold text-emerald-400">{stats.formattedHalfTime}</span>
+        </div>
+        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
+          <span className="text-xs text-slate-400 font-medium mb-1">Feitos</span>
+          <span className="text-xl font-bold text-white">{stats.completedCount} <span className="text-xs font-normal text-slate-500">treinos</span></span>
+        </div>
+      </div>
+
+      {/* CONTEÚDO PRINCIPAL (TABS) */}
+      <main className="flex-1 overflow-y-auto pb-24 max-w-md mx-auto w-full px-4 pt-4">
+        
+        {/* TAB 1: PLANO DE TREINOS COM DIAS DA SEMANA PRECISOS */}
+        {activeTab === 'plano' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>Planilha de Treinos</span>
+              </h2>
+              <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 p-1 rounded-lg">
+                <button 
+                  onClick={() => setSelectedWeek(prev => Math.max(1, prev - 1))}
+                  className="px-2 py-1 hover:bg-slate-800 rounded text-slate-300 font-bold"
+                >
+                  &larr;
+                </button>
+                <span className="text-xs font-bold text-slate-200 px-1">Semana {selectedWeek} de 16</span>
+                <button 
+                  onClick={() => setSelectedWeek(prev => Math.min(16, prev + 1))}
+                  className="px-2 py-1 hover:bg-slate-800 rounded text-slate-300 font-bold"
+                >
+                  &rarr;
+                </button>
               </div>
             </div>
 
-            <div className="space-y-4 p-4 sm:p-5">
-              {/* Card de resumo do dia */}
-              <div className="rounded-[24px] border border-indigo-400/20 bg-gradient-to-br from-indigo-950/70 via-slate-950/95 to-emerald-950/40 p-4 shadow-lg shadow-slate-950/30">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/20 text-xl">
-                      🧘‍♂️
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-indigo-100">Sessão Diária de Yoga</h3>
-                      <p className="mt-1 text-xs text-indigo-200/80">Recuperação ativa e alinhamento biomecânico</p>
-                      <span className="mt-2 inline-flex rounded-full bg-indigo-500/25 px-2.5 py-1 text-[10px] font-semibold text-indigo-100">
-                        20 a 25 min • Sem fadiga
-                      </span>
-                    </div>
-                  </div>
+            <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-2xl p-4">
+              <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Foco da Semana</h3>
+              <p className="text-sm text-slate-300 mt-1 font-semibold">{trainingPlan[selectedWeek]?.foco}</p>
+            </div>
 
-                  <button
-                    onClick={() => {
-                      const novoEstado = !yogaCompletoHoje;
-                      atualizarProgresso(undefined, novoEstado, undefined);
-                      exibirNotificacao(novoEstado ? 'Yoga do dia completado! Inteligência Artificial atualizada.' : 'Yoga marcado como incompleto.', 'info');
-                    }}
-                    className={`flex h-10 w-10 items-center justify-center rounded-2xl border transition-all ${
-                      yogaCompletoHoje
-                        ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-400'
-                        : 'border-indigo-400/25 bg-indigo-500/10 text-indigo-200 hover:bg-indigo-500/20'
+            <div className="space-y-3">
+              {trainingPlan[selectedWeek]?.treinos.map((workout, idx) => {
+                const isDone = completedWorkouts[`${selectedWeek}-${idx}`];
+                const isStrength = workout.zona.includes('Força');
+                
+                return (
+                  <div 
+                    key={idx} 
+                    onClick={() => toggleWorkout(selectedWeek, idx)}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 ${
+                      isDone 
+                        ? 'bg-slate-950/40 border-emerald-500/10 opacity-70' 
+                        : isStrength 
+                          ? 'bg-slate-950 border-orange-500/20 hover:border-orange-500/40' 
+                          : 'bg-slate-950 border-slate-800 hover:border-emerald-500/30'
                     }`}
                   >
-                    {yogaCompletoHoje ? <Check className="h-5 w-5 stroke-[3]" /> : <Circle className="h-5 w-5" />}
-                  </button>
-                </div>
+                    <div className="flex-1 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                          isStrength ? 'bg-orange-500/10 text-orange-400' : 'bg-emerald-500/10 text-emerald-400'
+                        }`}>
+                          {workout.dia}
+                        </span>
+                        <span className="bg-slate-800 px-2 py-0.5 rounded-md text-[10px] font-bold text-slate-300 uppercase tracking-wider">
+                          {workout.zona}
+                        </span>
+                      </div>
+                      <h4 className={`font-bold text-sm ${isDone ? 'line-through text-slate-500' : 'text-slate-100'}`}>
+                        {workout.tipo}
+                      </h4>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        {workout.desc}
+                      </p>
+                    </div>
 
-                {yogaCompletoHoje && (
-                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>Concluído! O coach ajustou o teu plano de esforço.</span>
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all ${
+                      isDone 
+                        ? 'bg-emerald-500 border-emerald-400 text-slate-950' 
+                        : isStrength 
+                          ? 'border-orange-500/30 bg-slate-900 hover:border-orange-400' 
+                          : 'border-slate-700 bg-slate-900 hover:border-emerald-400'
+                    }`}>
+                      {isDone && (
+                        <svg className="w-4 h-4 font-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
-
-              <div className="grid gap-2 rounded-[24px] border border-white/10 bg-slate-950/70 p-3 shadow-inner shadow-slate-950/20 md:grid-cols-3">
-                <div className="rounded-2xl bg-slate-900/80 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Progresso</p>
-                  <p className="mt-1 text-lg font-semibold text-emerald-400">{((Object.values(treinosConcluidos).filter(Boolean).length / 48) * 100).toFixed(0)}%</p>
-                </div>
-                <div className="rounded-2xl bg-slate-900/80 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Próximo foco</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-100">Longão Zona 2</p>
-                </div>
-                <div className="rounded-2xl bg-slate-900/80 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Hoje</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-100">Yoga + recuperação</p>
-                </div>
-              </div>
-
-              {/* Navegação dos separadores */}
-              <div className="grid grid-cols-4 gap-2 rounded-[24px] border border-white/10 bg-slate-950/75 p-2 shadow-inner shadow-slate-950/20">
-                <button
-                  onClick={() => setSeparadorAtivo('treinos')}
-                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-all ${
-                    separadorAtivo === 'treinos' ? 'bg-emerald-500/12 text-emerald-400 shadow-sm' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
-                  }`}
-                >
-                  <Calendar className="h-4 w-4" />
-                  <span className="text-[10px] font-medium">Treinos</span>
-                </button>
-
-                <button
-                  onClick={() => setSeparadorAtivo('fisiologia')}
-                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-all ${
-                    separadorAtivo === 'fisiologia' ? 'bg-emerald-500/12 text-emerald-400 shadow-sm' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
-                  }`}
-                >
-                  <TrendingUp className="h-4 w-4" />
-                  <span className="text-[10px] font-medium">Fisiologia</span>
-                </button>
-
-                <button
-                  onClick={() => setSeparadorAtivo('atividades')}
-                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-all ${
-                    separadorAtivo === 'atividades' ? 'bg-emerald-500/12 text-emerald-400 shadow-sm' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
-                  }`}
-                >
-                  <Activity className="h-4 w-4" />
-                  <span className="text-[10px] font-medium">Atividades</span>
-                </button>
-
-                <button
-                  onClick={() => setSeparadorAtivo('coach')}
-                  className={`relative flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-all ${
-                    separadorAtivo === 'coach' ? 'bg-indigo-500/12 text-indigo-400 shadow-sm' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
-                  }`}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  <span className="text-[10px] font-medium">Coach IA</span>
-                  <span className="absolute right-2 top-1 h-2 w-2 rounded-full bg-indigo-400"></span>
-                </button>
-              </div>
-
-              {/* Conteúdo scroll do celular */}
-              <div className="max-h-[calc(100vh-320px)] overflow-y-auto rounded-[24px] border border-white/10 bg-slate-950/70 p-4 sm:max-h-[none]">
-                {carregandoDados ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-16">
-                    <Loader className="h-8 w-8 animate-spin text-emerald-400" />
-                    <p className="text-sm text-slate-400">Sincronizando estatísticas...</p>
-                  </div>
-                ) : (
-                  <>
-                    {separadorAtivo === 'treinos' && (
-                      <div className="space-y-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <h2 className="text-base font-semibold text-slate-100">Planilha de Corrida</h2>
-                            <p className="mt-1 text-xs text-slate-400">{semanaAtualDados.fase}</p>
-                          </div>
-                          <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-400">
-                            Semana {semanaAtiva}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between rounded-[20px] border border-white/10 bg-slate-900/80 p-3 shadow-sm">
-                          <button
-                            onClick={() => setSemanaAtiva(prev => Math.max(1, prev - 1))}
-                            disabled={semanaAtiva === 1}
-                            className="rounded-2xl bg-slate-800/80 p-2 text-slate-300 transition-all hover:bg-slate-700 disabled:opacity-30"
-                          >
-                            <ChevronLeft className="h-5 w-5" />
-                          </button>
-                          <span className="text-sm font-semibold text-emerald-400">SEMANA {semanaAtiva} DE 16</span>
-                          <button
-                            onClick={() => setSemanaAtiva(prev => Math.min(16, prev + 1))}
-                            disabled={semanaAtiva === 16}
-                            className="rounded-2xl bg-slate-800/80 p-2 text-slate-300 transition-all hover:bg-slate-700 disabled:opacity-30"
-                          >
-                            <ChevronRight className="h-5 w-5" />
-                          </button>
-                        </div>
-
-                        <div className="space-y-3">
-                          {semanaAtualDados.treinos.map((treino) => {
-                            const concluido = !!treinosConcluidos[treino.id];
-                            return (
-                              <div
-                                key={treino.id}
-                                className={`rounded-[22px] border p-4 shadow-sm transition-all duration-300 ${
-                                  concluido
-                                    ? 'border-emerald-500/30 bg-emerald-500/10 text-slate-200'
-                                    : 'border-white/10 bg-slate-900/80 hover:border-slate-700'
-                                }`}
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className="rounded-full bg-slate-800/80 px-2.5 py-1 text-[10px] font-semibold text-slate-300">
-                                      {treino.dia}
-                                    </span>
-                                    <span className="text-[10px] font-semibold text-slate-500">
-                                      {treino.referenciaCientifica}
-                                    </span>
-                                  </div>
-
-                                  <button
-                                    onClick={() => {
-                                      const novosTicks = { ...treinosConcluidos, [treino.id]: !concluido };
-                                      atualizarProgresso(novosTicks, undefined, undefined);
-                                      exibirNotificacao(concluido ? 'Treino desmarcado' : 'Corrida guardada com sucesso! Treinador AI atualizado.', 'success');
-                                    }}
-                                    className={`rounded-2xl border p-1.5 transition-all ${
-                                      concluido
-                                        ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-400'
-                                        : 'border-white/10 bg-slate-950/70 text-slate-400 hover:bg-slate-800'
-                                    }`}
-                                  >
-                                    <CheckCircle className="h-4 w-4" />
-                                  </button>
-                                </div>
-
-                                <h4 className="mt-2 text-sm font-semibold text-slate-100">{treino.titulo}</h4>
-                                <p className="mt-1 text-xs leading-relaxed text-slate-400">{treino.descricao}</p>
-
-                                <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-xs">
-                                  <span className="text-slate-500">Distância Prevista</span>
-                                  <span className="text-sm font-semibold text-emerald-400">{treino.distanciaAlvo}</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {separadorAtivo === 'fisiologia' && (
-                      <div className="space-y-4">
-                        <div>
-                          <h2 className="text-base font-semibold text-slate-100">Calculadora Científica</h2>
-                          <p className="mt-1 text-xs text-slate-400">Estudos de fisiologia esportiva aplicados ao teu plano</p>
-                        </div>
-
-                        <div className="space-y-3 rounded-[22px] border border-white/10 bg-slate-900/80 p-3">
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <div>
-                              <label className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Idade</label>
-                              <input
-                                type="number"
-                                value={idade}
-                                onChange={(e) => setIdade(parseInt(e.target.value) || 30)}
-                                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">FC Max (bpm)</label>
-                              <input
-                                type="number"
-                                value={fcMaxima}
-                                onChange={(e) => setFcMaxima(parseInt(e.target.value) || 185)}
-                                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <div>
-                              <label className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">FC Repouso (bpm)</label>
-                              <input
-                                type="number"
-                                value={fcRepouso}
-                                onChange={(e) => setFcRepouso(parseInt(e.target.value) || 55)}
-                                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Cooper (12 min)</label>
-                              <input
-                                type="number"
-                                value={distanciaCooper}
-                                onChange={(e) => setDistanciaCooper(parseInt(e.target.value) || 2400)}
-                                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
-                                placeholder="Metros"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3 rounded-[22px] border border-white/10 bg-slate-900/70 p-3">
-                          <h3 className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Fórmulas e resultados</h3>
-                          <div className="space-y-3">
-                            <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-2.5">
-                              <p className="text-[10px] text-slate-400">{"Fórmula de Uth-Sørensen ($VO_2\\max$):"}</p>
-                              <div className="my-2 flex items-center justify-center rounded-xl bg-slate-900/70 py-2 text-center text-sm font-serif">
-                                {"$$VO_2\\max = 15.4 \\times \\left( \\frac{FC_{\\max}}{FC_{\\text{repouso}}} \\right)$$"}
-                              </div>
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-slate-500">Estimativa Karvonen</span>
-                                <span className="font-semibold text-emerald-400">{fisiologia.vo2maxUth} ml/kg/min</span>
-                              </div>
-                            </div>
-                            <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-2.5">
-                              <p className="text-[10px] text-slate-400">{"Fórmula do Teste de Cooper:"}</p>
-                              <div className="my-2 flex items-center justify-center rounded-xl bg-slate-900/70 py-2 text-center text-sm font-serif">
-                                {"$$VO_2\\max = \\frac{\\text{Distância (m)} - 504.9}{44.73}$$"}
-                              </div>
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-slate-500">Estimativa de resistência</span>
-                                <span className="font-semibold text-emerald-400">{fisiologia.vo2maxCooper} ml/kg/min</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <h3 className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Zonas de ritmo</h3>
-                          {fisiologia.zonas.map((zona, i) => (
-                            <div key={i} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-2.5 text-xs">
-                              <div className="flex-1">
-                                <p className="font-semibold text-slate-200">{zona.nome}</p>
-                                <p className="mt-0.5 text-[10px] text-slate-500">{zona.desc}</p>
-                              </div>
-                              <div className="flex-shrink-0 text-right font-semibold text-emerald-400">
-                                {zona.min} - {zona.max} bpm
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {separadorAtivo === 'atividades' && (
-                      <div className="space-y-4">
-                        <div>
-                          <h2 className="text-base font-semibold text-slate-100">Upload & Integrações</h2>
-                          <p className="mt-1 text-xs text-slate-400">Importar o teu histórico ou ligar os teus dispositivos favoritos</p>
-                        </div>
-
-                        <label className="flex cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed border-emerald-500/30 bg-slate-900/70 p-6 text-center transition-all hover:border-emerald-400/60">
-                          <Upload className="mb-2 h-8 w-8 text-slate-400" />
-                          <span className="text-sm font-semibold text-slate-200">Importar actividades.csv</span>
-                          <span className="mt-1 text-xs text-slate-500">Carrega o histórico do teu Strava em segundos</span>
-                          <input type="file" accept=".csv" onChange={processarUploadCSV} className="hidden" />
-                        </label>
-
-                        <div className="space-y-2">
-                          <h3 className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Sincronizar dispositivos</h3>
-
-                          <div className="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3">
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-xl">🏃‍♂️</span>
-                              <div>
-                                <p className="text-xs font-semibold text-slate-200">Strava Link</p>
-                                <p className="text-[10px] text-slate-500">{stravaConectado ? 'Sincronizado' : 'Não conectado'}</p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => simularConexaoDispositivo('strava')}
-                              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
-                                stravaConectado
-                                  ? 'border border-orange-500/30 bg-orange-500/15 text-orange-400'
-                                  : 'bg-orange-500 text-slate-950 hover:bg-orange-400'
-                              }`}
-                            >
-                              {stravaConectado ? 'Ativo' : 'Ligar'}
-                            </button>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3">
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-xl">❤️</span>
-                              <div>
-                                <p className="text-xs font-semibold text-slate-200">Google Fit</p>
-                                <p className="text-[10px] text-slate-500">{googleFitConectado ? 'Sincronizado' : 'Não conectado'}</p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => simularConexaoDispositivo('gfit')}
-                              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
-                                googleFitConectado
-                                  ? 'border border-blue-500/30 bg-blue-500/15 text-blue-400'
-                                  : 'bg-blue-500 text-slate-950 hover:bg-blue-400'
-                              }`}
-                            >
-                              {googleFitConectado ? 'Ativo' : 'Ligar'}
-                            </button>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3">
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-xl">💚</span>
-                              <div>
-                                <p className="text-xs font-semibold text-slate-200">Samsung Health</p>
-                                <p className="text-[10px] text-slate-500">{samsungHealthConectado ? 'Sincronizado' : 'Não conectado'}</p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => simularConexaoDispositivo('samsung')}
-                              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
-                                samsungHealthConectado
-                                  ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-400'
-                                  : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
-                              }`}
-                            >
-                              {samsungHealthConectado ? 'Ativo' : 'Ligar'}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <h3 className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Atividades recentes ({atividadesImportadas.length})</h3>
-                          {atividadesImportadas.length === 0 ? (
-                            <p className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs italic text-slate-500">
-                              Nenhuma atividade importada de momento. Faz upload do teu CSV acima.
-                            </p>
-                          ) : (
-                            <div className="space-y-2">
-                              {atividadesImportadas.map((act, index) => (
-                                <div key={act.id || index} className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/70 p-2.5 text-xs">
-                                  <div>
-                                    <p className="font-semibold text-slate-200">{act.nome}</p>
-                                    <p className="mt-0.5 text-[10px] text-slate-500">{act.data}</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="font-semibold text-emerald-400">{act.distancia} km</p>
-                                    <p className="mt-0.5 text-[10px] text-slate-500">{act.duracao} min</p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {separadorAtivo === 'coach' && (
-                      <div className="flex h-[480px] flex-col overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/80">
-                        <div className="flex items-center justify-between border-b border-indigo-900/30 bg-indigo-950/30 p-3">
-                          <div className="flex items-center gap-2">
-                            <div className="rounded-2xl bg-indigo-500/15 p-2 text-xs text-indigo-300">🤖</div>
-                            <div>
-                              <h3 className="text-xs font-semibold text-slate-100">The Machine AI Coach</h3>
-                              <p className="text-[10px] text-indigo-300">Baseado em Andres (2024) e Guilherme (2004)</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div ref={containerChatRef} className="flex-1 space-y-3 overflow-y-auto p-3 text-xs">
-                          {mensagensChat.map((msg) => (
-                            <div
-                              key={msg.id}
-                              className={`max-w-[85%] rounded-[18px] p-3 leading-relaxed ${
-                                msg.sender === 'coach'
-                                  ? 'mr-auto border border-white/10 bg-slate-900 text-slate-200'
-                                  : 'ml-auto bg-indigo-600 text-white'
-                              }`}
-                            >
-                              <p className="whitespace-pre-wrap">{msg.text}</p>
-                            </div>
-                          ))}
-
-                          {chatEnviando && (
-                            <div className="mr-auto flex max-w-[85%] items-center gap-2 rounded-[18px] border border-white/10 bg-slate-900 p-3 text-slate-400">
-                              <Loader className="h-4 w-4 animate-spin text-indigo-400" />
-                              <span>The Machine está a processar os dados fisiológicos...</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2 border-t border-white/10 bg-slate-900/80 p-2">
-                          <input
-                            type="text"
-                            value={novaMensagem}
-                            onChange={(e) => setNovaMensagem(e.target.value)}
-                            onKeyDown={tratarKeyDownChat}
-                            placeholder="Pergunta sobre Fartlek, Yoga ou Zonas..."
-                            className="flex-1 rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-indigo-500"
-                          />
-                          <button
-                            onClick={enviarMensagemChat}
-                            disabled={!novaMensagem.trim() || chatEnviando}
-                            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-white transition-all hover:bg-indigo-500 disabled:opacity-40"
-                          >
-                            <Send className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
+                );
+              })}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* PAINEL DIREITO: DESKTOP */}
-        <div className="hidden flex-1 space-y-6 overflow-y-auto rounded-[32px] border border-white/10 bg-slate-950/70 p-6 shadow-[0_24px_80px_rgba(2,6,23,0.35)] md:block">
-          <div className="relative overflow-hidden rounded-[32px] border border-indigo-400/20 bg-gradient-to-r from-slate-900/80 via-slate-950 to-indigo-950/60 p-7 shadow-xl shadow-indigo-950/20">
-            <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl"></div>
-            <div className="flex items-start justify-between gap-6">
-              <div className="space-y-3">
-                <span className="inline-flex rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-300">
-                  Meia Maratona 2027
-                </span>
-                <h2 className="text-2xl font-semibold tracking-tight text-slate-50">Tela científica do atleta</h2>
-                <p className="max-w-xl text-sm leading-relaxed text-slate-400">
-                  O teu planeamento dinâmico combina os princípios de Fartlek e base aeróbia para manter o treino inteligente, progressivo e confortável.
+        {/* TAB 2: HISTÓRICO DE PROGRESSO */}
+        {activeTab === 'progresso' && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-white">Registo de Atividades</h2>
+
+            {/* Caixa de Importação de CSV */}
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+              <div>
+                <h3 className="font-bold text-sm text-slate-200">Importar Dados do Strava</h3>
+                <p className="text-xs text-slate-400 mt-1">Carrega o teu ficheiro CSV de atividades do Strava para atualizar instantaneamente o teu histórico.</p>
+              </div>
+              <label className="flex items-center justify-center w-full h-24 border-2 border-slate-800 border-dashed rounded-xl cursor-pointer hover:border-slate-600 hover:bg-slate-900/50 transition">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <svg className="w-8 h-8 text-slate-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  <p className="text-xs text-slate-400 font-semibold">Clica para selecionar o ficheiro CSV</p>
+                </div>
+                <input type="file" accept=".csv" className="hidden" onChange={handleCsvUpload} />
+              </label>
+            </div>
+
+            {/* Listagem de Atividades Recentes */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Treinos Recentes</h3>
+              {activities.length === 0 ? (
+                <p className="text-xs text-slate-500 text-center py-6">Nenhum treino registado ainda. Começa por importar o teu CSV!</p>
+              ) : (
+                activities.map(act => (
+                  <div key={act.id} className="bg-slate-950 border border-slate-800/80 p-3.5 rounded-xl flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-900 p-2 rounded-lg border border-slate-800 text-slate-300">
+                        🏃
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-200">{act.type}</h4>
+                        <p className="text-[10px] text-slate-500 font-mono">{act.date}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-sm text-white">{act.distance} km</div>
+                      <div className="text-xs text-slate-400">{act.duration} min</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: COACH INTELIGENTE */}
+        {activeTab === 'coach' && (
+          <div className="flex flex-col h-[calc(100vh-13.5rem)] bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden">
+            {/* Header do Chat */}
+            <div className="bg-slate-900/60 border-b border-slate-800 px-4 py-3 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-slate-950 text-sm font-bold">
+                🤖
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-white">Treinador Inteligente</h3>
+                <p className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Especialista de Fisiologia Online
                 </p>
               </div>
-
-              <div className="rounded-[24px] border border-emerald-500/20 bg-slate-950/70 p-4 text-right shadow-lg shadow-slate-950/30">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Progresso da planilha</p>
-                <p className="mt-2 text-4xl font-semibold text-emerald-400">{((Object.values(treinosConcluidos).filter(Boolean).length / 48) * 100).toFixed(0)}%</p>
-                <p className="mt-1 text-xs text-slate-500">{Object.values(treinosConcluidos).filter(Boolean).length} de 48 corridas</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="space-y-3 rounded-[24px] border border-white/10 bg-slate-900/80 p-5">
-              <div className="flex items-center gap-2">
-                <span className="rounded-2xl bg-orange-500/10 p-2 text-orange-400">⚡</span>
-                <h3 className="text-sm font-semibold text-slate-100">Fartlek adaptado</h3>
-              </div>
-              <p className="text-sm leading-relaxed text-slate-400">
-                A alternância de intensidade melhora a economia de corrida e ajuda a manter o ritmo confortável ao longo da meia maratona.
-              </p>
-              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-xs text-slate-400">
-                <p className="font-semibold text-slate-300">Regras de aplicação</p>
-                <ul className="mt-2 list-disc space-y-1 pl-4">
-                  <li>Terças-feiras com foco em velocidade controlada</li>
-                  <li>Recuperação ativa em trote</li>
-                  <li>Isometria após treino</li>
-                </ul>
-              </div>
             </div>
 
-            <div className="space-y-3 rounded-[24px] border border-white/10 bg-slate-900/80 p-5">
-              <div className="flex items-center gap-2">
-                <span className="rounded-2xl bg-emerald-500/10 p-2 text-emerald-400">🌱</span>
-                <h3 className="text-sm font-semibold text-slate-100">Base aeróbia e capilarização</h3>
-              </div>
-              <p className="text-sm leading-relaxed text-slate-400">
-                A estrutura da semana orienta o corpo para construir resistência sem excesso de fadiga, reforçando a base para a prova final.
-              </p>
-              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-xs text-slate-400">
-                <p className="font-semibold text-slate-300">Regras de aplicação</p>
-                <ul className="mt-2 list-disc space-y-1 pl-4">
-                  <li>Volume progressivo nos longões</li>
-                  <li>Ritmo conversável na Zona 2</li>
-                  <li>Yoga diário para recuperação</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border border-white/10 bg-slate-900/80 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold text-slate-100">Distribuição semanal de esforço</h3>
-              <span className="text-xs text-slate-500">Carga metabólica</span>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-center">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Fartlek</p>
-                <p className="mt-1 text-lg font-semibold text-orange-400">35%</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">Neuromuscular</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-center">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Recuperação</p>
-                <p className="mt-1 text-lg font-semibold text-indigo-400">0%</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">Yoga & repouso</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-center">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Limiar</p>
-                <p className="mt-1 text-lg font-semibold text-yellow-400">25%</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">Lactato</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-center">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Longão</p>
-                <p className="mt-1 text-lg font-semibold text-emerald-400">40%</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">Capilarização</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Modal de sincronização */}
-        {mostrarModalConexao && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md space-y-4 rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-2xl shadow-slate-950/50">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">⚡</span>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-100">Ligar {mostrarModalConexao.toUpperCase()}</h3>
-                  <p className="text-xs text-slate-400">Autorizar partilha segura de atividades de corrida</p>
+            {/* Mensagens */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((msg, idx) => (
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] rounded-2xl p-3 text-sm leading-relaxed ${
+                    msg.role === 'user' 
+                      ? 'bg-emerald-500 text-slate-950 font-medium rounded-tr-none' 
+                      : 'bg-slate-900 text-slate-200 rounded-tl-none border border-slate-800'
+                  }`}>
+                    {msg.content}
+                  </div>
                 </div>
+              ))}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-3 max-w-[80%]">
+                    <div className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Input do Chat */}
+            <form onSubmit={handleSendMessage} className="border-t border-slate-800 p-3 bg-slate-900/40 flex gap-2">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={e => setInputMessage(e.target.value)}
+                placeholder="Pergunta sobre o plano, zonas ou Kettlebell..."
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 text-slate-200 placeholder-slate-500"
+              />
+              <button 
+                type="submit"
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 rounded-xl text-sm transition"
+              >
+                Enviar
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* TAB 4: SINCRONIZAÇÃO DE DISPOSITIVOS */}
+        {activeTab === 'sync' && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-white">Sincronização de Saúde</h2>
+            <p className="text-xs text-slate-400">Liga as tuas contas para importar as tuas corridas em tempo real de forma segura e sem fios.</p>
+
+            <div className="space-y-3">
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-600/10 text-orange-500 flex items-center justify-center font-bold text-lg">
+                    S
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-200">Strava</h3>
+                    <p className="text-[10px] text-slate-500">Ligação oficial via API de atividades</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleDeviceSync('Strava')}
+                  className="bg-slate-900 border border-slate-700 hover:border-emerald-500 hover:bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 transition"
+                >
+                  Sincronizar
+                </button>
               </div>
 
-              <p className="text-sm leading-relaxed text-slate-300">
-                Ao autorizar, este aplicativo lê em segurança o teu histórico de corrida para calibrar automaticamente os limiares de esforço e reforçar as sugestões do coach.
-              </p>
-
-              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-[11px] text-slate-400">
-                <p className="font-semibold text-slate-300">Permissões pedidas</p>
-                <p className="mt-1">✔ Leitura do perfil de corrida</p>
-                <p>✔ Frequência cardíaca e zonas</p>
-                <p>✔ Rotas de GPS e tempos</p>
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-600/10 text-blue-500 flex items-center justify-center font-bold text-lg animate-pulse">
+                    G
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-200">Google Fit</h3>
+                    <p className="text-[10px] text-slate-500">Sincronização de passos e batimentos</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleDeviceSync('Google Fit')}
+                  className="bg-slate-900 border border-slate-700 hover:border-emerald-500 hover:bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 transition"
+                >
+                  Ligar
+                </button>
               </div>
 
-              <div className="grid gap-2 pt-2 sm:grid-cols-2">
-                <button
-                  onClick={() => setMostrarModalConexao(null)}
-                  className="rounded-2xl bg-slate-800 px-4 py-2.5 text-center text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-700"
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-600/10 text-cyan-400 flex items-center justify-center font-bold text-lg">
+                    S
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-200">Samsung Health</h3>
+                    <p className="text-[10px] text-slate-500">Importação de dados de wearables</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleDeviceSync('Samsung Health')}
+                  className="bg-slate-900 border border-slate-700 hover:border-emerald-500 hover:bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 transition"
                 >
-                  Cancelar
+                  Ligar
                 </button>
-                <button
-                  onClick={() => confirmarSincronizacaoDispositivo(mostrarModalConexao)}
-                  className="rounded-2xl bg-emerald-500 px-4 py-2.5 text-center text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-400"
-                >
-                  Autorizar
-                </button>
+              </div>
+            </div>
+
+            {/* Ajustes de Configuração do Atleta */}
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+              <h3 className="font-bold text-sm text-slate-200">Ajustes Biométricos</h3>
+              <div className="flex items-center gap-4">
+                <div className="flex-1 space-y-1">
+                  <label className="text-xs text-slate-400">Peso Corporal (kg)</label>
+                  <input 
+                    type="number" 
+                    value={weight} 
+                    onChange={e => {
+                      const w = parseFloat(e.target.value);
+                      setWeight(w);
+                      localStorage.setItem('rfc_weight', w);
+                    }}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-sm text-white"
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <label className="text-xs text-slate-400">Frequência Cardíaca Repouso</label>
+                  <input 
+                    type="number" 
+                    defaultValue={55}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-sm text-white"
+                  />
+                </div>
               </div>
             </div>
           </div>
         )}
-      </div>
+
+      </main>
+
+      {/* BARRA DE NAVEGAÇÃO INFERIOR RESPONSIVA */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-md border-t border-slate-800/80 px-4 py-2 z-50">
+        <div className="max-w-md mx-auto flex items-center justify-around gap-1">
+          <button 
+            onClick={() => setActiveTab('plano')}
+            className={`flex flex-col items-center justify-center flex-1 py-1 px-2.5 rounded-xl transition ${
+              activeTab === 'plano' ? 'text-emerald-400 bg-slate-900/60' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span className="text-lg">📋</span>
+            <span className="text-[10px] mt-0.5 font-semibold">Planilha</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('progresso')}
+            className={`flex flex-col items-center justify-center flex-1 py-1 px-2.5 rounded-xl transition ${
+              activeTab === 'progresso' ? 'text-emerald-400 bg-slate-900/60' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span className="text-lg">📈</span>
+            <span className="text-[10px] mt-0.5 font-semibold">Progresso</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('coach')}
+            className={`flex flex-col items-center justify-center flex-1 py-1 px-2.5 rounded-xl transition ${
+              activeTab === 'coach' ? 'text-emerald-400 bg-slate-900/60' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span className="text-lg">🤖</span>
+            <span className="text-[10px] mt-0.5 font-semibold">Coach</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('sync')}
+            className={`flex flex-col items-center justify-center flex-1 py-1 px-2.5 rounded-xl transition ${
+              activeTab === 'sync' ? 'text-emerald-400 bg-slate-900/60' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span className="text-lg">🔄</span>
+            <span className="text-[10px] mt-0.5 font-semibold">Sincronizar</span>
+          </button>
+        </div>
+      </nav>
+
     </div>
   );
 }
