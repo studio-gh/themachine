@@ -662,655 +662,627 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased px-4 py-8 flex flex-col items-center gap-10 md:flex-row md:items-start md:justify-center">
-      <div className="w-full max-w-[1180px] mx-auto flex flex-col items-center gap-8 md:flex-row md:items-start md:justify-center">
-      
-      {/* Banner de Notificação Personalizada */}
-      {notificacao && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-2xl flex items-center gap-3 transition-all transform duration-300 ${
-          notificacao.tipo === 'success' ? 'bg-emerald-500 text-slate-950' : 
-          notificacao.tipo === 'error' ? 'bg-red-500 text-white' : 'bg-indigo-600 text-white'
-        }`}>
-          <Sparkles className="w-5 h-5 flex-shrink-0" />
-          <span className="font-semibold text-sm">{notificacao.mensagem}</span>
-        </div>
-      )}
-
-      {/* PAINEL LATERAL ESQUERDO: DISPOSITIVO MÓVEL EM TELA INTEIRA NO CELULAR */}
-      <div className="w-full max-w-[480px] md:w-[440px] border border-slate-800/80 bg-slate-900/95 shadow-2xl shadow-slate-950/40 rounded-[36px] overflow-hidden ring-1 ring-slate-800/60 backdrop-blur-xl flex flex-col flex-shrink-0">
-        
-        {/* Topo do Celular */}
-        <div className="p-4 bg-slate-950/95 border-b border-slate-800/70 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
-            <div>
-              <h1 className="font-bold tracking-tight text-md">RUN FOR COVER</h1>
-              <p className="text-xs text-slate-400">Celular Ativo • Meia Maratona</p>
-            </div>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.16),_transparent_20%),radial-gradient(circle_at_bottom_right,_rgba(99,102,241,0.16),_transparent_28%)] text-slate-100 font-sans antialiased px-3 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 xl:flex-row xl:items-start">
+        {/* Banner de Notificação Personalizada */}
+        {notificacao && (
+          <div className={`fixed right-4 top-4 z-50 flex items-center gap-3 rounded-2xl border border-white/10 px-4 py-3 shadow-2xl shadow-slate-950/50 transition-all duration-300 ${
+            notificacao.tipo === 'success' ? 'bg-emerald-500/95 text-slate-950' : 
+            notificacao.tipo === 'error' ? 'bg-rose-500/95 text-white' : 'bg-indigo-600/95 text-white'
+          }`}>
+            <Sparkles className="h-5 w-5 flex-shrink-0" />
+            <span className="text-sm font-semibold">{notificacao.mensagem}</span>
           </div>
-          
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${
-              conexaoFirebase ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-            }`}>
-              {conexaoFirebase ? 'Sincronizado' : 'Modo Local'}
-            </span>
-            <Smartphone className="w-5 h-5 text-slate-400" />
-          </div>
-        </div>
+        )}
 
-        {/* CARD DIÁRIO DO CO-PROCESSO YOGA (20-25 minutos) */}
-        <div className="p-5 bg-gradient-to-r from-indigo-950/70 via-slate-950 to-emerald-950/30 border border-slate-800/50 rounded-[28px] backdrop-blur-2xl shadow-xl">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex gap-3">
-              <div className="p-3 rounded-xl bg-indigo-500/20 text-indigo-400 flex-shrink-0">
-                🧘‍♂️
-              </div>
-              <div>
-                <h3 className="font-bold text-sm text-indigo-200">Sessão Diária de Yoga</h3>
-                <p className="text-xs text-indigo-300 mt-0.5">Alongamento Excêntrico e Alinhamento Ativo</p>
-                <span className="inline-block mt-2 text-[10px] bg-indigo-500/30 text-indigo-200 px-2 py-0.5 rounded-full font-semibold">
-                  20 a 25 min • Sem Fadiga
-                </span>
+        {/* PAINEL LATERAL ESQUERDO */}
+        <div className="mx-auto w-full max-w-[500px] flex-shrink-0 rounded-[32px] border border-white/10 bg-slate-900/80 shadow-[0_24px_80px_rgba(2,6,23,0.45)] backdrop-blur-xl md:max-w-full md:w-full xl:mx-0 xl:w-[440px]">
+          <div className="flex flex-col">
+            {/* Topo do Celular */}
+            <div className="border-b border-white/10 bg-gradient-to-r from-slate-950/95 via-slate-900/90 to-slate-950/95 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400"></div>
+                  <div>
+                    <h1 className="text-sm font-semibold tracking-[0.24em] text-slate-100">RUN FOR COVER</h1>
+                    <p className="text-xs text-slate-400">Celular Ativo • Meia Maratona</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
+                    conexaoFirebase ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-amber-500/20 bg-amber-500/10 text-amber-400'
+                  }`}>
+                    {conexaoFirebase ? 'Sincronizado' : 'Modo Local'}
+                  </span>
+                  <div className="rounded-full border border-white/10 bg-slate-800/80 p-2 text-slate-300">
+                    <Smartphone className="h-4 w-4" />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                const novoEstado = !yogaCompletoHoje;
-                atualizarProgresso(undefined, novoEstado, undefined);
-                exibirNotificacao(novoEstado ? "Yoga do dia completado! Inteligência Artificial atualizada." : "Yoga marcado como incompleto.", "info");
-              }}
-              className={`p-2.5 rounded-xl border transition-all flex items-center justify-center ${
-                yogaCompletoHoje 
-                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
-                  : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20'
-              }`}
-            >
-              {yogaCompletoHoje ? <Check className="w-5 h-5 stroke-[3]" /> : <Circle className="w-5 h-5" />}
-            </button>
-          </div>
-          {yogaCompletoHoje && (
-            <div className="mt-3 text-xs text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 p-2 rounded-lg">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Concluído! Treinador AI atualizou as recomendações de esforço.</span>
-            </div>
-          )}
-        </div>
-
-        {/* NAVEGAÇÃO DOS SEPARADORES NO CELULAR */}
-        <div className="grid grid-cols-4 bg-slate-950/95 p-3 gap-3 border-b border-slate-800/70 rounded-3xl shadow-inner shadow-slate-950/10">
-          <button
-            onClick={() => setSeparadorAtivo('treinos')}
-            className={`py-2 px-1 text-center rounded-lg flex flex-col items-center justify-center gap-1 transition-all ${
-              separadorAtivo === 'treinos' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span className="text-[10px]">Treinos</span>
-          </button>
-          
-          <button
-            onClick={() => setSeparadorAtivo('fisiologia')}
-            className={`py-2 px-1 text-center rounded-lg flex flex-col items-center justify-center gap-1 transition-all ${
-              separadorAtivo === 'fisiologia' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <TrendingUp className="w-4 h-4" />
-            <span className="text-[10px]">Fisiologia</span>
-          </button>
-
-          <button
-            onClick={() => setSeparadorAtivo('atividades')}
-            className={`py-2 px-1 text-center rounded-lg flex flex-col items-center justify-center gap-1 transition-all ${
-              separadorAtivo === 'atividades' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Activity className="w-4 h-4" />
-            <span className="text-[10px]">Atividades</span>
-          </button>
-
-          <button
-            onClick={() => setSeparadorAtivo('coach')}
-            className={`py-2 px-1 text-center rounded-lg flex flex-col items-center justify-center gap-1 transition-all relative ${
-              separadorAtivo === 'coach' ? 'bg-slate-800 text-indigo-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            <span className="text-[10px]">Coach IA</span>
-            <span className="absolute top-1 right-3 w-2 h-2 rounded-full bg-indigo-500"></span>
-          </button>
-        </div>
-
-        {/* ÁREA DE CONTEÚDO SCROLL DO CELULAR */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 max-h-[calc(100vh-240px)] md:max-h-[none]">
-          
-          {carregandoDados ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <Loader className="w-8 h-8 text-emerald-500 animate-spin" />
-              <p className="text-sm text-slate-400">Sincronizando estatísticas...</p>
-            </div>
-          ) : (
-            <>
-              {/* SEPARADOR: PLANILHA DE TREINOS DE 16 SEMANAS */}
-              {separadorAtivo === 'treinos' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+            <div className="space-y-4 p-4 sm:p-5">
+              {/* Card de resumo do dia */}
+              <div className="rounded-[24px] border border-indigo-400/20 bg-gradient-to-br from-indigo-950/70 via-slate-950/95 to-emerald-950/40 p-4 shadow-lg shadow-slate-950/30">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/20 text-xl">
+                      🧘‍♂️
+                    </div>
                     <div>
-                      <h2 className="text-lg font-bold text-slate-100 flex items-center gap-1.5">
-                        <span>Planilha de Corrida</span>
-                      </h2>
-                      <p className="text-xs text-slate-400">{semanaAtualDados.fase}</p>
+                      <h3 className="text-sm font-semibold text-indigo-100">Sessão Diária de Yoga</h3>
+                      <p className="mt-1 text-xs text-indigo-200/80">Recuperação ativa e alinhamento biomecânico</p>
+                      <span className="mt-2 inline-flex rounded-full bg-indigo-500/25 px-2.5 py-1 text-[10px] font-semibold text-indigo-100">
+                        20 a 25 min • Sem fadiga
+                      </span>
                     </div>
                   </div>
 
-                  {/* Seleção deslizante de semanas */}
-                  <div className="flex items-center justify-between bg-slate-950/90 p-3 rounded-3xl border border-slate-800/60 shadow-sm">
-                    <button 
-                      onClick={() => setSemanaAtiva(prev => Math.max(1, prev - 1))}
-                      disabled={semanaAtiva === 1}
-                      className="p-2 rounded-2xl bg-slate-900/90 hover:bg-slate-800 disabled:opacity-30"
-                    >
-                      <ChevronLeft className="w-5 h-5 text-slate-300" />
-                    </button>
-                    <span className="font-bold text-sm text-emerald-400">SEMANA {semanaAtiva} DE 16</span>
-                    <button 
-                      onClick={() => setSemanaAtiva(prev => Math.min(16, prev + 1))}
-                      disabled={semanaAtiva === 16}
-                      className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-30"
-                    >
-                      <ChevronRight className="w-5 h-5 text-slate-300" />
-                    </button>
+                  <button
+                    onClick={() => {
+                      const novoEstado = !yogaCompletoHoje;
+                      atualizarProgresso(undefined, novoEstado, undefined);
+                      exibirNotificacao(novoEstado ? 'Yoga do dia completado! Inteligência Artificial atualizada.' : 'Yoga marcado como incompleto.', 'info');
+                    }}
+                    className={`flex h-10 w-10 items-center justify-center rounded-2xl border transition-all ${
+                      yogaCompletoHoje
+                        ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-400'
+                        : 'border-indigo-400/25 bg-indigo-500/10 text-indigo-200 hover:bg-indigo-500/20'
+                    }`}
+                  >
+                    {yogaCompletoHoje ? <Check className="h-5 w-5 stroke-[3]" /> : <Circle className="h-5 w-5" />}
+                  </button>
+                </div>
+
+                {yogaCompletoHoje && (
+                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Concluído! O coach ajustou o teu plano de esforço.</span>
                   </div>
+                )}
+              </div>
 
-                  {/* Lista de Treinos da Semana */}
-                  <div className="space-y-3">
-                    {semanaAtualDados.treinos.map((treino) => {
-                      const concluido = !!treinosConcluidos[treino.id];
-                      return (
-                        <div 
-                          key={treino.id}
-                          className={`p-4 rounded-3xl border transition-all duration-300 ease-out shadow-sm hover:-translate-y-0.5 ${
-                            concluido 
-                              ? 'bg-slate-950/60 border-emerald-500/40 text-slate-300' 
-                              : 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-bold">
-                                {treino.dia}
-                              </span>
-                              <span className="text-[10px] font-semibold text-slate-500">
-                                {treino.referenciaCientifica}
-                              </span>
+              <div className="grid gap-2 rounded-[24px] border border-white/10 bg-slate-950/70 p-3 shadow-inner shadow-slate-950/20 md:grid-cols-3">
+                <div className="rounded-2xl bg-slate-900/80 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Progresso</p>
+                  <p className="mt-1 text-lg font-semibold text-emerald-400">{((Object.values(treinosConcluidos).filter(Boolean).length / 48) * 100).toFixed(0)}%</p>
+                </div>
+                <div className="rounded-2xl bg-slate-900/80 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Próximo foco</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-100">Longão Zona 2</p>
+                </div>
+                <div className="rounded-2xl bg-slate-900/80 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Hoje</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-100">Yoga + recuperação</p>
+                </div>
+              </div>
+
+              {/* Navegação dos separadores */}
+              <div className="grid grid-cols-4 gap-2 rounded-[24px] border border-white/10 bg-slate-950/75 p-2 shadow-inner shadow-slate-950/20">
+                <button
+                  onClick={() => setSeparadorAtivo('treinos')}
+                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-all ${
+                    separadorAtivo === 'treinos' ? 'bg-emerald-500/12 text-emerald-400 shadow-sm' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
+                  }`}
+                >
+                  <Calendar className="h-4 w-4" />
+                  <span className="text-[10px] font-medium">Treinos</span>
+                </button>
+
+                <button
+                  onClick={() => setSeparadorAtivo('fisiologia')}
+                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-all ${
+                    separadorAtivo === 'fisiologia' ? 'bg-emerald-500/12 text-emerald-400 shadow-sm' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
+                  }`}
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  <span className="text-[10px] font-medium">Fisiologia</span>
+                </button>
+
+                <button
+                  onClick={() => setSeparadorAtivo('atividades')}
+                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-all ${
+                    separadorAtivo === 'atividades' ? 'bg-emerald-500/12 text-emerald-400 shadow-sm' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
+                  }`}
+                >
+                  <Activity className="h-4 w-4" />
+                  <span className="text-[10px] font-medium">Atividades</span>
+                </button>
+
+                <button
+                  onClick={() => setSeparadorAtivo('coach')}
+                  className={`relative flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-all ${
+                    separadorAtivo === 'coach' ? 'bg-indigo-500/12 text-indigo-400 shadow-sm' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
+                  }`}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span className="text-[10px] font-medium">Coach IA</span>
+                  <span className="absolute right-2 top-1 h-2 w-2 rounded-full bg-indigo-400"></span>
+                </button>
+              </div>
+
+              {/* Conteúdo scroll do celular */}
+              <div className="max-h-[calc(100vh-320px)] overflow-y-auto rounded-[24px] border border-white/10 bg-slate-950/70 p-4 sm:max-h-[none]">
+                {carregandoDados ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-16">
+                    <Loader className="h-8 w-8 animate-spin text-emerald-400" />
+                    <p className="text-sm text-slate-400">Sincronizando estatísticas...</p>
+                  </div>
+                ) : (
+                  <>
+                    {separadorAtivo === 'treinos' && (
+                      <div className="space-y-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h2 className="text-base font-semibold text-slate-100">Planilha de Corrida</h2>
+                            <p className="mt-1 text-xs text-slate-400">{semanaAtualDados.fase}</p>
+                          </div>
+                          <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-400">
+                            Semana {semanaAtiva}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-[20px] border border-white/10 bg-slate-900/80 p-3 shadow-sm">
+                          <button
+                            onClick={() => setSemanaAtiva(prev => Math.max(1, prev - 1))}
+                            disabled={semanaAtiva === 1}
+                            className="rounded-2xl bg-slate-800/80 p-2 text-slate-300 transition-all hover:bg-slate-700 disabled:opacity-30"
+                          >
+                            <ChevronLeft className="h-5 w-5" />
+                          </button>
+                          <span className="text-sm font-semibold text-emerald-400">SEMANA {semanaAtiva} DE 16</span>
+                          <button
+                            onClick={() => setSemanaAtiva(prev => Math.min(16, prev + 1))}
+                            disabled={semanaAtiva === 16}
+                            className="rounded-2xl bg-slate-800/80 p-2 text-slate-300 transition-all hover:bg-slate-700 disabled:opacity-30"
+                          >
+                            <ChevronRight className="h-5 w-5" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-3">
+                          {semanaAtualDados.treinos.map((treino) => {
+                            const concluido = !!treinosConcluidos[treino.id];
+                            return (
+                              <div
+                                key={treino.id}
+                                className={`rounded-[22px] border p-4 shadow-sm transition-all duration-300 ${
+                                  concluido
+                                    ? 'border-emerald-500/30 bg-emerald-500/10 text-slate-200'
+                                    : 'border-white/10 bg-slate-900/80 hover:border-slate-700'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-full bg-slate-800/80 px-2.5 py-1 text-[10px] font-semibold text-slate-300">
+                                      {treino.dia}
+                                    </span>
+                                    <span className="text-[10px] font-semibold text-slate-500">
+                                      {treino.referenciaCientifica}
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    onClick={() => {
+                                      const novosTicks = { ...treinosConcluidos, [treino.id]: !concluido };
+                                      atualizarProgresso(novosTicks, undefined, undefined);
+                                      exibirNotificacao(concluido ? 'Treino desmarcado' : 'Corrida guardada com sucesso! Treinador AI atualizado.', 'success');
+                                    }}
+                                    className={`rounded-2xl border p-1.5 transition-all ${
+                                      concluido
+                                        ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-400'
+                                        : 'border-white/10 bg-slate-950/70 text-slate-400 hover:bg-slate-800'
+                                    }`}
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                  </button>
+                                </div>
+
+                                <h4 className="mt-2 text-sm font-semibold text-slate-100">{treino.titulo}</h4>
+                                <p className="mt-1 text-xs leading-relaxed text-slate-400">{treino.descricao}</p>
+
+                                <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-xs">
+                                  <span className="text-slate-500">Distância Prevista</span>
+                                  <span className="text-sm font-semibold text-emerald-400">{treino.distanciaAlvo}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {separadorAtivo === 'fisiologia' && (
+                      <div className="space-y-4">
+                        <div>
+                          <h2 className="text-base font-semibold text-slate-100">Calculadora Científica</h2>
+                          <p className="mt-1 text-xs text-slate-400">Estudos de fisiologia esportiva aplicados ao teu plano</p>
+                        </div>
+
+                        <div className="space-y-3 rounded-[22px] border border-white/10 bg-slate-900/80 p-3">
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <div>
+                              <label className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Idade</label>
+                              <input
+                                type="number"
+                                value={idade}
+                                onChange={(e) => setIdade(parseInt(e.target.value) || 30)}
+                                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-500"
+                              />
                             </div>
+                            <div>
+                              <label className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">FC Max (bpm)</label>
+                              <input
+                                type="number"
+                                value={fcMaxima}
+                                onChange={(e) => setFcMaxima(parseInt(e.target.value) || 185)}
+                                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                              />
+                            </div>
+                          </div>
 
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <div>
+                              <label className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">FC Repouso (bpm)</label>
+                              <input
+                                type="number"
+                                value={fcRepouso}
+                                onChange={(e) => setFcRepouso(parseInt(e.target.value) || 55)}
+                                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Cooper (12 min)</label>
+                              <input
+                                type="number"
+                                value={distanciaCooper}
+                                onChange={(e) => setDistanciaCooper(parseInt(e.target.value) || 2400)}
+                                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                                placeholder="Metros"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 rounded-[22px] border border-white/10 bg-slate-900/70 p-3">
+                          <h3 className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Fórmulas e resultados</h3>
+                          <div className="space-y-3">
+                            <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-2.5">
+                              <p className="text-[10px] text-slate-400">{"Fórmula de Uth-Sørensen ($VO_2\\max$):"}</p>
+                              <div className="my-2 flex items-center justify-center rounded-xl bg-slate-900/70 py-2 text-center text-sm font-serif">
+                                {"$$VO_2\\max = 15.4 \\times \\left( \\frac{FC_{\\max}}{FC_{\\text{repouso}}} \\right)$$"}
+                              </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-slate-500">Estimativa Karvonen</span>
+                                <span className="font-semibold text-emerald-400">{fisiologia.vo2maxUth} ml/kg/min</span>
+                              </div>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-2.5">
+                              <p className="text-[10px] text-slate-400">{"Fórmula do Teste de Cooper:"}</p>
+                              <div className="my-2 flex items-center justify-center rounded-xl bg-slate-900/70 py-2 text-center text-sm font-serif">
+                                {"$$VO_2\\max = \\frac{\\text{Distância (m)} - 504.9}{44.73}$$"}
+                              </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-slate-500">Estimativa de resistência</span>
+                                <span className="font-semibold text-emerald-400">{fisiologia.vo2maxCooper} ml/kg/min</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <h3 className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Zonas de ritmo</h3>
+                          {fisiologia.zonas.map((zona, i) => (
+                            <div key={i} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-2.5 text-xs">
+                              <div className="flex-1">
+                                <p className="font-semibold text-slate-200">{zona.nome}</p>
+                                <p className="mt-0.5 text-[10px] text-slate-500">{zona.desc}</p>
+                              </div>
+                              <div className="flex-shrink-0 text-right font-semibold text-emerald-400">
+                                {zona.min} - {zona.max} bpm
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {separadorAtivo === 'atividades' && (
+                      <div className="space-y-4">
+                        <div>
+                          <h2 className="text-base font-semibold text-slate-100">Upload & Integrações</h2>
+                          <p className="mt-1 text-xs text-slate-400">Importar o teu histórico ou ligar os teus dispositivos favoritos</p>
+                        </div>
+
+                        <label className="flex cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed border-emerald-500/30 bg-slate-900/70 p-6 text-center transition-all hover:border-emerald-400/60">
+                          <Upload className="mb-2 h-8 w-8 text-slate-400" />
+                          <span className="text-sm font-semibold text-slate-200">Importar actividades.csv</span>
+                          <span className="mt-1 text-xs text-slate-500">Carrega o histórico do teu Strava em segundos</span>
+                          <input type="file" accept=".csv" onChange={processarUploadCSV} className="hidden" />
+                        </label>
+
+                        <div className="space-y-2">
+                          <h3 className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Sincronizar dispositivos</h3>
+
+                          <div className="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3">
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-xl">🏃‍♂️</span>
+                              <div>
+                                <p className="text-xs font-semibold text-slate-200">Strava Link</p>
+                                <p className="text-[10px] text-slate-500">{stravaConectado ? 'Sincronizado' : 'Não conectado'}</p>
+                              </div>
+                            </div>
                             <button
-                              onClick={() => {
-                                const novosTicks = { ...treinosConcluidos, [treino.id]: !concluido };
-                                atualizarProgresso(novosTicks, undefined, undefined);
-                                exibirNotificacao(concluido ? "Treino desmarcado" : "Corrida guardada com sucesso! Treinador AI atualizado.", "success");
-                              }}
-                              className={`p-1.5 rounded-2xl border transition-all ${
-                                concluido 
-                                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
-                                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-850'
+                              onClick={() => simularConexaoDispositivo('strava')}
+                              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+                                stravaConectado
+                                  ? 'border border-orange-500/30 bg-orange-500/15 text-orange-400'
+                                  : 'bg-orange-500 text-slate-950 hover:bg-orange-400'
                               }`}
                             >
-                              <CheckCircle className="w-4 h-4" />
+                              {stravaConectado ? 'Ativo' : 'Ligar'}
                             </button>
                           </div>
 
-                          <h4 className="font-bold text-sm mt-2 text-slate-100">{treino.titulo}</h4>
-                          <p className="text-xs text-slate-400 mt-1 leading-relaxed">{treino.descricao}</p>
-                          
-                          <div className="mt-3 flex items-center justify-between border-t border-slate-800/60 pt-2 text-xs">
-                            <span className="text-slate-500">Distância Prevista</span>
-                            <span className="font-bold text-emerald-400 text-sm">{treino.distanciaAlvo}</span>
+                          <div className="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3">
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-xl">❤️</span>
+                              <div>
+                                <p className="text-xs font-semibold text-slate-200">Google Fit</p>
+                                <p className="text-[10px] text-slate-500">{googleFitConectado ? 'Sincronizado' : 'Não conectado'}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => simularConexaoDispositivo('gfit')}
+                              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+                                googleFitConectado
+                                  ? 'border border-blue-500/30 bg-blue-500/15 text-blue-400'
+                                  : 'bg-blue-500 text-slate-950 hover:bg-blue-400'
+                              }`}
+                            >
+                              {googleFitConectado ? 'Ativo' : 'Ligar'}
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3">
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-xl">💚</span>
+                              <div>
+                                <p className="text-xs font-semibold text-slate-200">Samsung Health</p>
+                                <p className="text-[10px] text-slate-500">{samsungHealthConectado ? 'Sincronizado' : 'Não conectado'}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => simularConexaoDispositivo('samsung')}
+                              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+                                samsungHealthConectado
+                                  ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-400'
+                                  : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
+                              }`}
+                            >
+                              {samsungHealthConectado ? 'Ativo' : 'Ligar'}
+                            </button>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
-              {/* SEPARADOR: FISIOLOGIA CIENTÍFICA */}
-              {separadorAtivo === 'fisiologia' && (
-                <div className="space-y-4">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-100">Calculadora Científica</h2>
-                    <p className="text-xs text-slate-400">Estudos de Fisiologia Esportiva Aplicada</p>
-                  </div>
-
-                  {/* Formulário de Input Fisiológico */}
-                  <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Idade</label>
-                        <input 
-                          type="number" 
-                          value={idade}
-                          onChange={(e) => setIdade(parseInt(e.target.value) || 30)}
-                          className="w-full mt-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-sm focus:outline-none focus:border-emerald-500 text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">FC Max (bpm)</label>
-                        <input 
-                          type="number" 
-                          value={fcMaxima}
-                          onChange={(e) => setFcMaxima(parseInt(e.target.value) || 185)}
-                          className="w-full mt-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-sm focus:outline-none focus:border-emerald-500 text-slate-100"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">FC Repouso (bpm)</label>
-                        <input 
-                          type="number" 
-                          value={fcRepouso}
-                          onChange={(e) => setFcRepouso(parseInt(e.target.value) || 55)}
-                          className="w-full mt-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-sm focus:outline-none focus:border-emerald-500 text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Cooper (12 min)</label>
-                        <input 
-                          type="number" 
-                          value={distanciaCooper}
-                          onChange={(e) => setDistanciaCooper(parseInt(e.target.value) || 2400)}
-                          className="w-full mt-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-sm focus:outline-none focus:border-emerald-500 text-slate-100"
-                          placeholder="Metros"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Fórmulas renderizadas com KaTeX isoladas de forma segura dentro do JSX */}
-                  <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800 space-y-4">
-                    <h3 className="font-bold text-xs text-slate-400 uppercase tracking-widest">Fórmulas e Resultados</h3>
-                    
-                    <div className="space-y-3">
-                      <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800/40">
-                        <p className="text-[10px] text-slate-400">{"Fórmula de Uth-Sørensen ($VO_2\\max$):"}</p>
-                        <div className="my-2 py-1 bg-slate-900/50 rounded flex justify-center items-center text-sm font-serif text-center">
-                          {"$$VO_2\\max = 15.4 \\times \\left( \\frac{FC_{\\max}}{FC_{\\text{repouso}}} \\right)$$"}
-                        </div>
-                        <div className="flex justify-between items-center mt-2 text-xs">
-                          <span>Estimativa Karvonen:</span>
-                          <span className="font-bold text-emerald-400 text-sm">{fisiologia.vo2maxUth} ml/kg/min</span>
+                        <div className="space-y-2">
+                          <h3 className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Atividades recentes ({atividadesImportadas.length})</h3>
+                          {atividadesImportadas.length === 0 ? (
+                            <p className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs italic text-slate-500">
+                              Nenhuma atividade importada de momento. Faz upload do teu CSV acima.
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {atividadesImportadas.map((act, index) => (
+                                <div key={act.id || index} className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/70 p-2.5 text-xs">
+                                  <div>
+                                    <p className="font-semibold text-slate-200">{act.nome}</p>
+                                    <p className="mt-0.5 text-[10px] text-slate-500">{act.data}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-semibold text-emerald-400">{act.distancia} km</p>
+                                    <p className="mt-0.5 text-[10px] text-slate-500">{act.duracao} min</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
+                    )}
 
-                      <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800/40">
-                        <p className="text-[10px] text-slate-400">{"Fórmula do Teste de Cooper:"}</p>
-                        <div className="my-2 py-1 bg-slate-900/50 rounded flex justify-center items-center text-sm font-serif text-center">
-                          {"$$VO_2\\max = \\frac{\\text{Distância (m)} - 504.9}{44.73}$$"}
-                        </div>
-                        <div className="flex justify-between items-center mt-2 text-xs">
-                          <span>Estimativa de Resistência:</span>
-                          <span className="font-bold text-emerald-400 text-sm">{fisiologia.vo2maxCooper} ml/kg/min</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Zonas de Esforço baseadas em Karvonen */}
-                  <div className="space-y-2">
-                    <h3 className="font-bold text-xs text-slate-400 uppercase tracking-widest">Zonas de Ritmo</h3>
-                    {fisiologia.zonas.map((zona, i) => (
-                      <div key={i} className="p-2.5 bg-slate-900/40 border border-slate-850 rounded-xl flex items-center justify-between text-xs gap-3">
-                        <div className="flex-1">
-                          <p className="font-bold text-slate-200">{zona.nome}</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">{zona.desc}</p>
-                        </div>
-                        <div className="text-right font-bold text-emerald-400 flex-shrink-0">
-                          {zona.min} - {zona.max} bpm
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                </div>
-              )}
-
-              {/* SEPARADOR: IMPORTAÇÃO DE ATIVIDADES */}
-              {separadorAtivo === 'atividades' && (
-                <div className="space-y-4">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-100">Upload & Integrações</h2>
-                    <p className="text-xs text-slate-400">Importar arquivo Strava (Planilha) ou Ligar APIs</p>
-                  </div>
-
-                  {/* Upload CSV real */}
-                  <label className="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer bg-slate-950/50 transition-all">
-                    <Upload className="w-8 h-8 text-slate-400 mb-2" />
-                    <span className="text-sm font-bold text-slate-200">Importar atividades.csv</span>
-                    <span className="text-xs text-slate-500 mt-1">Carrega o histórico de corrida do teu Strava</span>
-                    <input 
-                      type="file" 
-                      accept=".csv" 
-                      onChange={processarUploadCSV} 
-                      className="hidden" 
-                    />
-                  </label>
-
-                  {/* Integração Interactiva de Dispositivos */}
-                  <div className="space-y-2">
-                    <h3 className="font-bold text-xs text-slate-400 uppercase tracking-widest">Sincronizar Dispositivos</h3>
-                    
-                    {/* STRAVA */}
-                    <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-xl">🏃‍♂️</span>
-                        <div>
-                          <p className="font-bold text-xs">Strava Link</p>
-                          <p className="text-[10px] text-slate-500">{stravaConectado ? 'Sincronizado' : 'Não Conectado'}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => simularConexaoDispositivo('strava')}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${
-                          stravaConectado 
-                            ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' 
-                            : 'bg-orange-500 text-slate-950 hover:bg-orange-400'
-                        }`}
-                      >
-                        {stravaConectado ? 'Ativo' : 'Ligar'}
-                      </button>
-                    </div>
-
-                    {/* GOOGLE FIT */}
-                    <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-xl">❤️</span>
-                        <div>
-                          <p className="font-bold text-xs">Google Fit</p>
-                          <p className="text-[10px] text-slate-500">{googleFitConectado ? 'Sincronizado' : 'Não Conectado'}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => simularConexaoDispositivo('gfit')}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${
-                          googleFitConectado 
-                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
-                            : 'bg-blue-500 text-slate-950 hover:bg-blue-400'
-                        }`}
-                      >
-                        {googleFitConectado ? 'Ativo' : 'Ligar'}
-                      </button>
-                    </div>
-
-                    {/* SAMSUNG HEALTH */}
-                    <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-xl">💚</span>
-                        <div>
-                          <p className="font-bold text-xs">Samsung Health</p>
-                          <p className="text-[10px] text-slate-500">{samsungHealthConectado ? 'Sincronizado' : 'Não Conectado'}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => simularConexaoDispositivo('samsung')}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${
-                          samsungHealthConectado 
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                            : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
-                        }`}
-                      >
-                        {samsungHealthConectado ? 'Ativo' : 'Ligar'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Histórico Recente */}
-                  <div className="space-y-2">
-                    <h3 className="font-bold text-xs text-slate-400 uppercase tracking-widest">Atividades Recentes ({atividadesImportadas.length})</h3>
-                    {atividadesImportadas.length === 0 ? (
-                      <p className="text-xs text-slate-500 italic py-4">Nenhuma atividade importada de momento. Faz upload do teu CSV acima.</p>
-                    ) : (
-                      <div className="space-y-1.5 max-h-[220px] overflow-y-auto">
-                        {atividadesImportadas.map((act, index) => (
-                          <div key={act.id || index} className="p-2.5 bg-slate-950 rounded-xl flex items-center justify-between text-xs border border-slate-800/40">
+                    {separadorAtivo === 'coach' && (
+                      <div className="flex h-[480px] flex-col overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/80">
+                        <div className="flex items-center justify-between border-b border-indigo-900/30 bg-indigo-950/30 p-3">
+                          <div className="flex items-center gap-2">
+                            <div className="rounded-2xl bg-indigo-500/15 p-2 text-xs text-indigo-300">🤖</div>
                             <div>
-                              <p className="font-bold text-slate-200">{act.nome}</p>
-                              <p className="text-[10px] text-slate-500">{act.data}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold text-emerald-400">{act.distancia} km</p>
-                              <p className="text-[10px] text-slate-500">{act.duracao} min</p>
+                              <h3 className="text-xs font-semibold text-slate-100">The Machine AI Coach</h3>
+                              <p className="text-[10px] text-indigo-300">Baseado em Andres (2024) e Guilherme (2004)</p>
                             </div>
                           </div>
-                        ))}
+                        </div>
+
+                        <div ref={containerChatRef} className="flex-1 space-y-3 overflow-y-auto p-3 text-xs">
+                          {mensagensChat.map((msg) => (
+                            <div
+                              key={msg.id}
+                              className={`max-w-[85%] rounded-[18px] p-3 leading-relaxed ${
+                                msg.sender === 'coach'
+                                  ? 'mr-auto border border-white/10 bg-slate-900 text-slate-200'
+                                  : 'ml-auto bg-indigo-600 text-white'
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap">{msg.text}</p>
+                            </div>
+                          ))}
+
+                          {chatEnviando && (
+                            <div className="mr-auto flex max-w-[85%] items-center gap-2 rounded-[18px] border border-white/10 bg-slate-900 p-3 text-slate-400">
+                              <Loader className="h-4 w-4 animate-spin text-indigo-400" />
+                              <span>The Machine está a processar os dados fisiológicos...</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 border-t border-white/10 bg-slate-900/80 p-2">
+                          <input
+                            type="text"
+                            value={novaMensagem}
+                            onChange={(e) => setNovaMensagem(e.target.value)}
+                            onKeyDown={tratarKeyDownChat}
+                            placeholder="Pergunta sobre Fartlek, Yoga ou Zonas..."
+                            className="flex-1 rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-indigo-500"
+                          />
+                          <button
+                            onClick={enviarMensagemChat}
+                            disabled={!novaMensagem.trim() || chatEnviando}
+                            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-white transition-all hover:bg-indigo-500 disabled:opacity-40"
+                          >
+                            <Send className="h-5 w-5" />
+                          </button>
+                        </div>
                       </div>
                     )}
-                  </div>
-                </div>
-              )}
-
-              {/* SEPARADOR: AI COACH CHAT */}
-              {separadorAtivo === 'coach' && (
-                <div className="flex flex-col h-[480px] bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
-                  
-                  {/* Cabeçalho do Chat */}
-                  <div className="p-3 bg-indigo-950/40 border-b border-indigo-900/30 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 text-xs">
-                        🤖
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-xs text-slate-200">The Machine AI Coach</h3>
-                        <p className="text-[10px] text-indigo-300">Baseado em Andres (2024) e Guilherme (2004)</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Caixa de Conversação */}
-                  <div 
-                    ref={containerChatRef}
-                    className="flex-1 p-3 overflow-y-auto space-y-3 text-xs"
-                  >
-                    {mensagensChat.map((msg) => (
-                      <div 
-                        key={msg.id}
-                        className={`p-3 rounded-2xl max-w-[85%] leading-relaxed ${
-                          msg.sender === 'coach' 
-                            ? 'bg-slate-900 border border-slate-800 mr-auto text-slate-200' 
-                            : 'bg-indigo-600 text-white ml-auto'
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap">{msg.text}</p>
-                      </div>
-                    ))}
-                    
-                    {chatEnviando && (
-                      <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-900 border border-slate-800 mr-auto max-w-[85%] text-slate-400">
-                        <Loader className="w-4 h-4 animate-spin text-indigo-400 flex-shrink-0" />
-                        <span>The Machine está a processar os dados fisiológicos...</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Caixa de Texto */}
-                  <div className="p-2 bg-slate-900 border-t border-slate-800 flex items-center gap-1.5">
-                    <input 
-                      type="text" 
-                      value={novaMensagem}
-                      onChange={(e) => setNovaMensagem(e.target.value)}
-                      onKeyDown={tratarKeyDownChat}
-                      placeholder="Pergunta sobre Fartlek, Yoga ou Zonas..."
-                      className="flex-1 px-3 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-indigo-500"
-                    />
-                    <button
-                      onClick={enviarMensagemChat}
-                      disabled={!novaMensagem.trim() || chatEnviando}
-                      className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white transition-all flex items-center justify-center"
-                    >
-                      <Send className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                </div>
-              )}
-            </>
-          )}
-
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* PAINEL DIREITO: PAINEL DE CONTROLO DE ATLETISMO PARA DESKTOP */}
-      <div className="flex-1 bg-slate-950 p-6 space-y-6 overflow-y-auto hidden md:block">
-        
-        {/* Banner do Coach e Sincronização */}
-        <div className="bg-gradient-to-r from-slate-900/80 via-slate-950 to-indigo-950/60 border border-indigo-900/30 rounded-[36px] p-7 relative overflow-hidden shadow-2xl shadow-indigo-950/20">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl -z-10"></div>
-          
-          <div className="flex items-center justify-between">
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest bg-indigo-900/30 px-3 py-1 rounded-full border border-indigo-500/20">
-                Meia Maratona 2027
-              </span>
-              <h2 className="text-2xl font-black text-slate-50 tracking-tight">Tela Científica do Atleta</h2>
-              <p className="text-slate-400 text-sm max-w-xl">
-                O teu planeamento dinâmico integra as descobertas de <strong>Andres (2024)</strong> sobre a eficiência mecânica e variação neuromuscular do Fartlek, em conjunto com as diretrizes de capilarização muscular de longo prazo de <strong>Guilherme (2004)</strong>.
+        {/* PAINEL DIREITO: DESKTOP */}
+        <div className="hidden flex-1 space-y-6 overflow-y-auto rounded-[32px] border border-white/10 bg-slate-950/70 p-6 shadow-[0_24px_80px_rgba(2,6,23,0.35)] md:block">
+          <div className="relative overflow-hidden rounded-[32px] border border-indigo-400/20 bg-gradient-to-r from-slate-900/80 via-slate-950 to-indigo-950/60 p-7 shadow-xl shadow-indigo-950/20">
+            <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl"></div>
+            <div className="flex items-start justify-between gap-6">
+              <div className="space-y-3">
+                <span className="inline-flex rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-300">
+                  Meia Maratona 2027
+                </span>
+                <h2 className="text-2xl font-semibold tracking-tight text-slate-50">Tela científica do atleta</h2>
+                <p className="max-w-xl text-sm leading-relaxed text-slate-400">
+                  O teu planeamento dinâmico combina os princípios de Fartlek e base aeróbia para manter o treino inteligente, progressivo e confortável.
+                </p>
+              </div>
+
+              <div className="rounded-[24px] border border-emerald-500/20 bg-slate-950/70 p-4 text-right shadow-lg shadow-slate-950/30">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Progresso da planilha</p>
+                <p className="mt-2 text-4xl font-semibold text-emerald-400">{((Object.values(treinosConcluidos).filter(Boolean).length / 48) * 100).toFixed(0)}%</p>
+                <p className="mt-1 text-xs text-slate-500">{Object.values(treinosConcluidos).filter(Boolean).length} de 48 corridas</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-3 rounded-[24px] border border-white/10 bg-slate-900/80 p-5">
+              <div className="flex items-center gap-2">
+                <span className="rounded-2xl bg-orange-500/10 p-2 text-orange-400">⚡</span>
+                <h3 className="text-sm font-semibold text-slate-100">Fartlek adaptado</h3>
+              </div>
+              <p className="text-sm leading-relaxed text-slate-400">
+                A alternância de intensidade melhora a economia de corrida e ajuda a manter o ritmo confortável ao longo da meia maratona.
               </p>
-            </div>
-
-            <div className="text-right space-y-1">
-              <p className="text-xs text-slate-400 uppercase tracking-wider">Progresso da Planilha</p>
-              <p className="text-4xl font-black text-emerald-400">
-                {((Object.values(treinosConcluidos).filter(Boolean).length / 48) * 100).toFixed(0)}%
-              </p>
-              <p className="text-xs text-slate-500">
-                {Object.values(treinosConcluidos).filter(Boolean).length} de 48 corridas
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Informação sobre os Estudos de Atletismo */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
-          {/* Fartlek Andres (2024) */}
-          <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="p-2 rounded-lg bg-orange-500/10 text-orange-400">⚡</span>
-              <h3 className="font-bold text-sm text-slate-100">Fartlek Sueco Adaptado (Andres, 2024)</h3>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              O estudo científico demonstra que a alternância ativa de intensidades metabólicas acima e abaixo do limiar anaeróbio acelera a remoção de lactato sanguíneo, otimizando a tela cardiorrespiratória e expandindo a tua velocidade de cruzeiro para a meia maratona.
-            </p>
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/40 text-xs">
-              <p className="font-semibold text-slate-300">Regras de Aplicação:</p>
-              <ul className="list-disc list-inside mt-1 space-y-1 text-slate-400">
-                <li>Terças-feiras focadas em jogo de velocidades.</li>
-                <li>Recuperação ativa em trote (nunca caminhar totalmente).</li>
-                <li>Apoio pós-treino com isometria profunda.</li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Desenvolvimento Guilherme (2004) */}
-          <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">🌱</span>
-              <h3 className="font-bold text-sm text-slate-100">Base Aeróbia e Capilarização (Guilherme, 2004)</h3>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              A periodização de longo prazo de corredores de fundo exige que pelo menos 75% do volume semanal de corrida seja realizado estritamente na <strong>Zona 2 (Base Aeróbia)</strong>. Isto expande os teus leitos capilares musculares e aumenta de forma segura o teu limiar de lesão mecânica.
-            </p>
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/40 text-xs">
-              <p className="font-semibold text-slate-300">Regras de Aplicação:</p>
-              <ul className="list-disc list-inside mt-1 space-y-1 text-slate-400">
-                <li>Sábados ou Domingos focados em volume constante progressivo.</li>
-                <li>Manter conversas fáceis sem acelerações abruptas.</li>
-                <li>Alinhamento biomecânico e Yoga diário.</li>
-              </ul>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Visualização de Resumo da Carga da Planilha */}
-        <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-slate-100 flex items-center gap-2">
-              <span>Distribuição Semanal de Esforço da Planilha</span>
-            </h3>
-            <span className="text-xs text-slate-500">Unidades de Carga Metabólica</span>
-          </div>
-
-          <div className="grid grid-cols-4 gap-4">
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-850/60 text-center">
-              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Fartlek (Terça)</p>
-              <p className="text-lg font-black text-orange-400 mt-1">35% Carga</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Neuromuscular</p>
-            </div>
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-850/60 text-center">
-              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Recuperação (Quarta)</p>
-              <p className="text-lg font-black text-indigo-400 mt-1">0% Carga</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Repouso e Yoga</p>
-            </div>
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-850/60 text-center">
-              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Limiar (Quinta)</p>
-              <p className="text-lg font-black text-yellow-400 mt-1">25% Carga</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Limpagem de Lactato</p>
-            </div>
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-850/60 text-center">
-              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Longão (Fim de Semana)</p>
-              <p className="text-lg font-black text-emerald-400 mt-1">40% Carga</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Capilarização</p>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* MODAIS INTERACTIVOS DE AUTORIZAÇÃO DE DISPOSITIVOS */}
-      {mostrarModalConexao && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">⚡</span>
-              <div>
-                <h3 className="font-bold text-lg text-slate-100">Ligar {mostrarModalConexao.toUpperCase()}</h3>
-                <p className="text-xs text-slate-400">Autorizar partilha segura de atividades de corrida</p>
+              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-xs text-slate-400">
+                <p className="font-semibold text-slate-300">Regras de aplicação</p>
+                <ul className="mt-2 list-disc space-y-1 pl-4">
+                  <li>Terças-feiras com foco em velocidade controlada</li>
+                  <li>Recuperação ativa em trote</li>
+                  <li>Isometria após treino</li>
+                </ul>
               </div>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Ao clicar em autorizar, este aplicativo no seu celular irá ler com segurança o histórico de corridas passadas de forma a calibrar automaticamente os limiares de esforço da sua tela de treino e a IA do **The Machine**.
-            </p>
-
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-850/60 text-[11px] text-slate-400 space-y-1.5">
-              <p className="font-semibold text-slate-300">Permissões Pedidas:</p>
-              <p>✔ Leitura do perfil de usuário de corrida</p>
-              <p>✔ Leitura de frequência cardíaca e zonas</p>
-              <p>✔ Leitura de rotas de GPS e tempos</p>
+            <div className="space-y-3 rounded-[24px] border border-white/10 bg-slate-900/80 p-5">
+              <div className="flex items-center gap-2">
+                <span className="rounded-2xl bg-emerald-500/10 p-2 text-emerald-400">🌱</span>
+                <h3 className="text-sm font-semibold text-slate-100">Base aeróbia e capilarização</h3>
+              </div>
+              <p className="text-sm leading-relaxed text-slate-400">
+                A estrutura da semana orienta o corpo para construir resistência sem excesso de fadiga, reforçando a base para a prova final.
+              </p>
+              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-xs text-slate-400">
+                <p className="font-semibold text-slate-300">Regras de aplicação</p>
+                <ul className="mt-2 list-disc space-y-1 pl-4">
+                  <li>Volume progressivo nos longões</li>
+                  <li>Ritmo conversável na Zona 2</li>
+                  <li>Yoga diário para recuperação</li>
+                </ul>
+              </div>
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              <button 
-                onClick={() => setMostrarModalConexao(null)}
-                className="py-2.5 px-4 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 text-xs text-center transition-colors duration-200"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={() => confirmarSincronizacaoDispositivo(mostrarModalConexao)}
-                className="py-2.5 px-4 rounded-xl bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 text-xs text-center"
-              >
-                Autorizar
-              </button>
+          <div className="rounded-[24px] border border-white/10 bg-slate-900/80 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-slate-100">Distribuição semanal de esforço</h3>
+              <span className="text-xs text-slate-500">Carga metabólica</span>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-center">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Fartlek</p>
+                <p className="mt-1 text-lg font-semibold text-orange-400">35%</p>
+                <p className="mt-0.5 text-[10px] text-slate-500">Neuromuscular</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-center">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Recuperação</p>
+                <p className="mt-1 text-lg font-semibold text-indigo-400">0%</p>
+                <p className="mt-0.5 text-[10px] text-slate-500">Yoga & repouso</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-center">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Limiar</p>
+                <p className="mt-1 text-lg font-semibold text-yellow-400">25%</p>
+                <p className="mt-0.5 text-[10px] text-slate-500">Lactato</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-center">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Longão</p>
+                <p className="mt-1 text-lg font-semibold text-emerald-400">40%</p>
+                <p className="mt-0.5 text-[10px] text-slate-500">Capilarização</p>
+              </div>
             </div>
           </div>
         </div>
-      )}
 
+        {/* Modal de sincronização */}
+        {mostrarModalConexao && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md space-y-4 rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-2xl shadow-slate-950/50">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">⚡</span>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-100">Ligar {mostrarModalConexao.toUpperCase()}</h3>
+                  <p className="text-xs text-slate-400">Autorizar partilha segura de atividades de corrida</p>
+                </div>
+              </div>
+
+              <p className="text-sm leading-relaxed text-slate-300">
+                Ao autorizar, este aplicativo lê em segurança o teu histórico de corrida para calibrar automaticamente os limiares de esforço e reforçar as sugestões do coach.
+              </p>
+
+              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-[11px] text-slate-400">
+                <p className="font-semibold text-slate-300">Permissões pedidas</p>
+                <p className="mt-1">✔ Leitura do perfil de corrida</p>
+                <p>✔ Frequência cardíaca e zonas</p>
+                <p>✔ Rotas de GPS e tempos</p>
+              </div>
+
+              <div className="grid gap-2 pt-2 sm:grid-cols-2">
+                <button
+                  onClick={() => setMostrarModalConexao(null)}
+                  className="rounded-2xl bg-slate-800 px-4 py-2.5 text-center text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => confirmarSincronizacaoDispositivo(mostrarModalConexao)}
+                  className="rounded-2xl bg-emerald-500 px-4 py-2.5 text-center text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-400"
+                >
+                  Autorizar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
