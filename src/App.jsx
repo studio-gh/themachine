@@ -460,7 +460,128 @@ export default function App() {
       if(setToast) setToast({ type: 'success', message: 'Dados do Galaxy Watch 4 sincronizados via Health Connect!' });
     }, 2500);
   };
-  
+            {/* TAB 3: REGISTRO DE PROGRESSO */}
+          {activeTab === 'progresso' && (
+            <div className="space-y-8">
+              
+              {/* NOVO: Painel de Acumulados Claros e Hub de Sono (V4.1) */}
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-5 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
+                    <h3 className="text-slate-400 font-bold mb-1 text-sm flex items-center gap-2">📏 Distância no Mês</h3>
+                    <div className="text-3xl font-black text-white">{totalAppDistance.toFixed(1)}<span className="text-sm text-emerald-500 ml-1">km</span></div>
+                    <div className="mt-2 text-[10px] text-slate-500 font-medium">Apenas treinos estruturados do App</div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-5 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
+                    <h3 className="text-slate-400 font-bold mb-1 text-sm flex items-center gap-2">🔥 Gasto Calórico Total</h3>
+                    <div className="text-3xl font-black text-white">{totalMonthCalories}<span className="text-sm text-amber-500 ml-1">kcal</span></div>
+                    <div className="mt-2 flex gap-2 text-[10px] font-medium">
+                      <span className="bg-slate-800 text-slate-300 px-2 py-1 rounded">App: {totalAppCalories}</span>
+                      <span className="bg-indigo-950 text-indigo-300 px-2 py-1 rounded">Watch: {totalSHCalories}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-5 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
+                    <h3 className="text-slate-400 font-bold mb-1 text-sm flex items-center gap-2">⏱️ Tempo de Esforço</h3>
+                    <div className="text-3xl font-black text-white">{Math.floor(totalAppTime / 60)}h {totalAppTime % 60}m</div>
+                    <div className="mt-2 text-[10px] text-slate-500 font-medium">{activities.length} treinos concluídos</div>
+                  </div>
+                </div>
+
+                {/* Hub de Sono & IA Insights */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-indigo-950/30 p-5 rounded-2xl border border-indigo-900/50">
+                    <h3 className="text-lg font-black mb-3 text-indigo-300 flex items-center gap-2">🌙 Sono (Watch 4)</h3>
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <div className="text-[10px] text-indigo-400 font-bold">Noite Passada</div>
+                        <div className="text-2xl font-black text-white">{sleepData.hours}h</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-indigo-400 font-bold">Qualidade</div>
+                        <div className="text-lg font-bold text-amber-400">{sleepData.quality}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-indigo-400 font-bold">FC Repouso</div>
+                        <div className="text-lg font-bold text-rose-400 flex items-center gap-1">
+                          {sleepData.restingHR} <span className="text-sm">❤️</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-emerald-950/20 p-5 rounded-2xl border border-emerald-900/50 flex flex-col justify-center">
+                    <h3 className="text-sm font-black text-emerald-400 mb-1 flex items-center gap-2">🤖 IA Recovery Insight</h3>
+                    {sleepData.hours < 6 ? (
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        <span className="font-bold text-amber-400">Atenção:</span> Você dormiu apenas {sleepData.hours}h. Sugiro transformar o treino de hoje em <strong className="text-white">Zona 2 (Regenerativa)</strong> para evitar picos de cortisol.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        Recuperação excelente (FC Repouso em {sleepData.restingHR} bpm). Corpo pronto para o esforço programado na planilha!
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ANTIGO: Importador e Lista */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 border-t border-slate-800 pt-8">
+                <div className="lg:col-span-5 space-y-6">
+                  <div>
+                    <h2 className="text-xl font-black text-white">Importador de Histórico Strava</h2>
+                    <p className="text-xs text-slate-400 mt-1">Carregue suas planilhas de atividade exportadas em formato CSV do Strava.</p>
+                  </div>
+
+                  <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 space-y-4">
+                    <div className="space-y-1">
+                      <h3 className="font-extrabold text-sm text-slate-200">Arquivo de Atividades CSV</h3>
+                      <p className="text-xs text-slate-500">Mapeie as corridas para atualização direta de condicionamento.</p>
+                    </div>
+                    <label className="flex items-center justify-center w-full h-40 border-2 border-slate-800 border-dashed rounded-2xl cursor-pointer hover:border-slate-600 hover:bg-slate-900/40 transition">
+                      <div className="flex flex-col items-center justify-center text-center p-4">
+                        <span className="text-4xl mb-2">📁</span>
+                        <p className="text-xs text-slate-300 font-bold">Clique aqui para importar o CSV</p>
+                        <p className="text-[10px] text-slate-500 mt-1">ou arraste o arquivo do seu computador</p>
+                      </div>
+                      <input type="file" accept=".csv" className="hidden" onChange={handleCsvUpload} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-7 space-y-4">
+                  <h3 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest">Atividades Importadas</h3>
+                  
+                  {activities.length === 0 ? (
+                    <div className="bg-slate-950/60 border border-slate-800 p-8 rounded-3xl text-center text-slate-500 text-xs">
+                      Nenhuma atividade encontrada na base de dados do telefone.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+                      {activities.map(act => (
+                        <div key={act.id} className="bg-slate-950 border border-slate-800/80 p-4 rounded-2xl flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-lg">
+                              🏃
+                            </div>
+                            <div>
+                              <h4 className="font-extrabold text-sm text-slate-200">{act.type}</h4>
+                              <p className="text-[10px] text-slate-500 font-mono">{act.date}</p>
+                            </div>
+                          </div>
+                          <div className="text-right space-y-0.5">
+                            <div className="font-extrabold text-sm text-white">{act.distance} km</div>
+                            <div className="text-xs text-slate-400">{act.duration} min | Est. $VO_2$: <span className="text-emerald-400 font-bold">{act.vo2}</span></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col md:flex-row font-sans overflow-x-hidden antialiased selection:bg-emerald-500 selection:text-slate-950">
       
@@ -964,214 +1085,124 @@ export default function App() {
 
           {/* TAB 3: REGISTRO DE PROGRESSO */}
           {activeTab === 'progresso' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* NOVO: Painel de Acumulados Claros e Hub de Sono (V4.1) */}
-            <div className="mb-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-5 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
-                  <h3 className="text-slate-400 font-bold mb-1 text-sm flex items-center gap-2">📏 Distância no Mês</h3>
-                  <div className="text-3xl font-black text-white">{totalAppDistance.toFixed(1)}<span className="text-sm text-emerald-500 ml-1">km</span></div>
-                  <div className="mt-2 text-[10px] text-slate-500 font-medium">Apenas treinos estruturados do App</div>
-                </div>
-
-                <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-5 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
-                  <h3 className="text-slate-400 font-bold mb-1 text-sm flex items-center gap-2">🔥 Gasto Calórico Total</h3>
-                  <div className="text-3xl font-black text-white">{totalMonthCalories}<span className="text-sm text-amber-500 ml-1">kcal</span></div>
-                  <div className="mt-2 flex gap-2 text-[10px] font-medium">
-                    <span className="bg-slate-800 text-slate-300 px-2 py-1 rounded">App: {totalAppCalories}</span>
-                    <span className="bg-indigo-950 text-indigo-300 px-2 py-1 rounded">Watch: {totalSHCalories}</span>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-5 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
-                  <h3 className="text-slate-400 font-bold mb-1 text-sm flex items-center gap-2">⏱️ Tempo de Esforço</h3>
-                  <div className="text-3xl font-black text-white">{Math.floor(totalAppTime / 60)}h {totalAppTime % 60}m</div>
-                  <div className="mt-2 text-[10px] text-slate-500 font-medium">{activities.length} treinos concluídos</div>
-                </div>
-              </div>
-
-              {/* Hub de Sono & IA Insights */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-indigo-950/30 p-5 rounded-2xl border border-indigo-900/50">
-                  <h3 className="text-lg font-black mb-3 text-indigo-300 flex items-center gap-2">🌙 Sono (Watch 4)</h3>
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <div className="text-[10px] text-indigo-400 font-bold">Noite Passada</div>
-                      <div className="text-2xl font-black text-white">{sleepData.hours}h</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-indigo-400 font-bold">Qualidade</div>
-                      <div className="text-lg font-bold text-amber-400">{sleepData.quality}</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-indigo-400 font-bold">FC Repouso</div>
-                      <div className="text-lg font-bold text-rose-400 flex items-center gap-1">
-                        {sleepData.restingHR} <span className="text-sm">❤️</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-emerald-950/20 p-5 rounded-2xl border border-emerald-900/50 flex flex-col justify-center">
-                  <h3 className="text-sm font-black text-emerald-400 mb-1 flex items-center gap-2">🤖 IA Recovery Insight</h3>
-                  {sleepData.hours < 6 ? (
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      <span className="font-bold text-amber-400">Atenção:</span> Você dormiu apenas {sleepData.hours}h. Sugiro transformar o treino de hoje em <strong className="text-white">Zona 2 (Regenerativa)</strong> para evitar picos de cortisol.
-                    </p>
-                  ) : (
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      Recuperação excelente (FC Repouso em {sleepData.restingHR} bpm). Corpo pronto para o esforço programado na planilha!
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-              <div className="lg:col-span-5 space-y-6">
-                <div>
-                  <h2 className="text-xl font-black text-white">Importador de Histórico Strava</h2>
-                  <p className="text-xs text-slate-400 mt-1">Carregue suas planilhas de atividade exportadas em formato CSV do Strava.</p>
-                </div>
-
-                <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 space-y-4">
-                  <div className="space-y-1">
-                    <h3 className="font-extrabold text-sm text-slate-200">Arquivo de Atividades CSV</h3>
-                    <p className="text-xs text-slate-500">Mapeie as corridas para atualização direta de condicionamento.</p>
-                  </div>
-                  <label className="flex items-center justify-center w-full h-40 border-2 border-slate-800 border-dashed rounded-2xl cursor-pointer hover:border-slate-600 hover:bg-slate-900/40 transition">
-                    <div className="flex flex-col items-center justify-center text-center p-4">
-                      <span className="text-4xl mb-2">📁</span>
-                      <p className="text-xs text-slate-300 font-bold">Clique aqui para importar o CSV</p>
-                      <p className="text-[10px] text-slate-500 mt-1">ou arraste o arquivo do seu computador</p>
-                    </div>
-                    <input type="file" accept=".csv" className="hidden" onChange={handleCsvUpload} />
-                  </label>
-                </div>
-              </div>
-
-              {/* LISTAGEM DE HISTÓRICO */}
-              <div className="lg:col-span-7 space-y-4">
-                <h3 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest">Atividades Importadas</h3>
-                
-                {activities.length === 0 ? (
-                  <div className="bg-slate-950/60 border border-slate-800 p-8 rounded-3xl text-center text-slate-500 text-xs">
-                    Nenhuma atividade encontrada na base de dados do telefone.
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-                    {activities.map(act => (
-                      <div key={act.id} className="bg-slate-950 border border-slate-800/80 p-4 rounded-2xl flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-lg">
-                            🏃
-                          </div>
-                          <div>
-                            <h4 className="font-extrabold text-sm text-slate-200">{act.type}</h4>
-                            <p className="text-[10px] text-slate-500 font-mono">{act.date}</p>
-                          </div>
-                        </div>
-                        <div className="text-right space-y-0.5">
-                          <div className="font-extrabold text-sm text-white">{act.distance} km</div>
-                          <div className="text-xs text-slate-400">{act.duration} min | Est. $VO_2$: <span className="text-emerald-400 font-bold">{act.vo2}</span></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-            </div>
-          )}
-
-          {/* TAB 4: CHAT COACH */}
-          {activeTab === 'coach' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-16rem)] lg:h-[600px]">
+            <div className="space-y-8">
               
-              <div className="hidden lg:flex lg:col-span-4 flex-col justify-between bg-slate-950 border border-slate-800 p-6 rounded-3xl">
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-black text-white">Manual Científico</h3>
-                    <p className="text-xs text-slate-400 mt-1">Conceitos fundamentais da sua preparação contidos nos arquivos do projeto:</p>
+              {/* NOVO: Painel de Acumulados Claros e Hub de Sono (V4.1) */}
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-5 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
+                    <h3 className="text-slate-400 font-bold mb-1 text-sm flex items-center gap-2">📏 Distância no Mês</h3>
+                    <div className="text-3xl font-black text-white">{totalAppDistance.toFixed(1)}<span className="text-sm text-emerald-500 ml-1">km</span></div>
+                    <div className="mt-2 text-[10px] text-slate-500 font-medium">Apenas treinos estruturados do App</div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="bg-slate-900 p-3.5 rounded-2xl border border-slate-800">
-                      <h4 className="text-xs font-extrabold text-emerald-400 uppercase mb-1">Fartlek (Andres, 2024)</h4>
-                      <p className="text-[11px] text-slate-400 leading-relaxed">Benefícios de variação do limiar anaeróbico nas terças.</p>
-                    </div>
-
-                    <div className="bg-slate-900 p-3.5 rounded-2xl border border-slate-800">
-                      <h4 className="text-xs font-extrabold text-emerald-400 uppercase mb-1">Volume Z2 (Guilherme, 2004)</h4>
-                      <p className="text-[11px] text-slate-400 leading-relaxed">Aumentos progressivos confortáveis nos treinos de fim de semana para formar base capilar.</p>
+                  <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-5 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
+                    <h3 className="text-slate-400 font-bold mb-1 text-sm flex items-center gap-2">🔥 Gasto Calórico Total</h3>
+                    <div className="text-3xl font-black text-white">{totalMonthCalories}<span className="text-sm text-amber-500 ml-1">kcal</span></div>
+                    <div className="mt-2 flex gap-2 text-[10px] font-medium">
+                      <span className="bg-slate-800 text-slate-300 px-2 py-1 rounded">App: {totalAppCalories}</span>
+                      <span className="bg-indigo-950 text-indigo-300 px-2 py-1 rounded">Watch: {totalSHCalories}</span>
                     </div>
                   </div>
-                </div>
 
-                <div className="text-[10px] text-slate-500 font-mono">
-                  Base científica: Guilherme, Barbanti (EEFE USP)
-                </div>
-              </div>
-
-              {/* ÁREA DO CHAT */}
-              <div className="lg:col-span-8 flex flex-col bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden h-full">
-                <div className="bg-slate-900 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-slate-950 text-lg font-bold">
-                      🤖
-                    </div>
-                    <div>
-                      <h3 className="font-extrabold text-sm text-white">Treinador Virtual</h3>
-                      <p className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        Estilo de Vida & Performance
-                      </p>
-                    </div>
+                  <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-5 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
+                    <h3 className="text-slate-400 font-bold mb-1 text-sm flex items-center gap-2">⏱️ Tempo de Esforço</h3>
+                    <div className="text-3xl font-black text-white">{Math.floor(totalAppTime / 60)}h {totalAppTime % 60}m</div>
+                    <div className="mt-2 text-[10px] text-slate-500 font-medium">{activities.length} treinos concluídos</div>
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                  {messages.map((msg, idx) => (
-                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] rounded-2xl p-4 text-xs md:text-sm leading-relaxed ${
-                        msg.role === 'user' 
-                          ? 'bg-emerald-500 text-slate-950 font-bold rounded-tr-none shadow-md' 
-                          : 'bg-slate-900 text-slate-200 rounded-tl-none border border-slate-800'
-                      }`}>
-                        {msg.content}
+                {/* Hub de Sono & IA Insights */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-indigo-950/30 p-5 rounded-2xl border border-indigo-900/50">
+                    <h3 className="text-lg font-black mb-3 text-indigo-300 flex items-center gap-2">🌙 Sono (Watch 4)</h3>
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <div className="text-[10px] text-indigo-400 font-bold">Noite Passada</div>
+                        <div className="text-2xl font-black text-white">{sleepData.hours}h</div>
                       </div>
-                    </div>
-                  ))}
-                  {isTyping && (
-                    <div className="flex justify-start">
-                      <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[80%]">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                          <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                          <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                      <div>
+                        <div className="text-[10px] text-indigo-400 font-bold">Qualidade</div>
+                        <div className="text-lg font-bold text-amber-400">{sleepData.quality}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-indigo-400 font-bold">FC Repouso</div>
+                        <div className="text-lg font-bold text-rose-400 flex items-center gap-1">
+                          {sleepData.restingHR} <span className="text-sm">❤️</span>
                         </div>
                       </div>
                     </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
+                  </div>
 
-                <form onSubmit={handleSendMessage} className="border-t border-slate-800 p-4 bg-slate-900 flex gap-3">
-                  <input
-                    type="text"
-                    value={inputMessage}
-                    onChange={e => setInputMessage(e.target.value)}
-                    placeholder="Faça uma pergunta sobre o plano, execuções de força..."
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-emerald-500 text-slate-200"
-                  />
-                  <button 
-                    type="submit"
-                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-6 rounded-2xl text-xs uppercase tracking-wider transition"
-                  >
-                    Enviar
-                  </button>
-                </form>
+                  <div className="bg-emerald-950/20 p-5 rounded-2xl border border-emerald-900/50 flex flex-col justify-center">
+                    <h3 className="text-sm font-black text-emerald-400 mb-1 flex items-center gap-2">🤖 IA Recovery Insight</h3>
+                    {sleepData.hours < 6 ? (
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        <span className="font-bold text-amber-400">Atenção:</span> Você dormiu apenas {sleepData.hours}h. Sugiro transformar o treino de hoje em <strong className="text-white">Zona 2 (Regenerativa)</strong> para evitar picos de cortisol.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        Recuperação excelente (FC Repouso em {sleepData.restingHR} bpm). Corpo pronto para o esforço programado na planilha!
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
 
+              {/* ANTIGO: Importador e Lista */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 border-t border-slate-800 pt-8">
+                <div className="lg:col-span-5 space-y-6">
+                  <div>
+                    <h2 className="text-xl font-black text-white">Importador de Histórico Strava</h2>
+                    <p className="text-xs text-slate-400 mt-1">Carregue suas planilhas de atividade exportadas em formato CSV do Strava.</p>
+                  </div>
+
+                  <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 space-y-4">
+                    <div className="space-y-1">
+                      <h3 className="font-extrabold text-sm text-slate-200">Arquivo de Atividades CSV</h3>
+                      <p className="text-xs text-slate-500">Mapeie as corridas para atualização direta de condicionamento.</p>
+                    </div>
+                    <label className="flex items-center justify-center w-full h-40 border-2 border-slate-800 border-dashed rounded-2xl cursor-pointer hover:border-slate-600 hover:bg-slate-900/40 transition">
+                      <div className="flex flex-col items-center justify-center text-center p-4">
+                        <span className="text-4xl mb-2">📁</span>
+                        <p className="text-xs text-slate-300 font-bold">Clique aqui para importar o CSV</p>
+                        <p className="text-[10px] text-slate-500 mt-1">ou arraste o arquivo do seu computador</p>
+                      </div>
+                      <input type="file" accept=".csv" className="hidden" onChange={handleCsvUpload} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-7 space-y-4">
+                  <h3 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest">Atividades Importadas</h3>
+                  
+                  {activities.length === 0 ? (
+                    <div className="bg-slate-950/60 border border-slate-800 p-8 rounded-3xl text-center text-slate-500 text-xs">
+                      Nenhuma atividade encontrada na base de dados do telefone.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+                      {activities.map(act => (
+                        <div key={act.id} className="bg-slate-950 border border-slate-800/80 p-4 rounded-2xl flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-lg">
+                              🏃
+                            </div>
+                            <div>
+                              <h4 className="font-extrabold text-sm text-slate-200">{act.type}</h4>
+                              <p className="text-[10px] text-slate-500 font-mono">{act.date}</p>
+                            </div>
+                          </div>
+                          <div className="text-right space-y-0.5">
+                            <div className="font-extrabold text-sm text-white">{act.distance} km</div>
+                            <div className="text-xs text-slate-400">{act.duration} min | Est. $VO_2$: <span className="text-emerald-400 font-bold">{act.vo2}</span></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
