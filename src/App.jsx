@@ -460,6 +460,10 @@ export default function App() {
       if(setToast) setToast({ type: 'success', message: 'Dados do Galaxy Watch 4 sincronizados via Health Connect!' });
     }, 2500);
   };
+    const handleCsvUpload = (e) => {
+    // Futura implementação real de leitura de CSV
+    if(setToast) setToast({ type: 'success', message: 'Arquivo recebido! Leitura em desenvolvimento.' });
+  };
             {/* TAB 3: REGISTRO DE PROGRESSO */}
           {activeTab === 'progresso' && (
             <div className="space-y-8">
