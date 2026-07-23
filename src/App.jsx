@@ -6,22 +6,20 @@ const apiKey = "";
 export default function App() {
   // --- ESTADOS DO SISTEMA ---
   const [activeTab, setActiveTab] = useState('plano'); // 'plano' | 'nutricao' | 'progresso' | 'coach' | 'sync'
-  const [activities, setActivities] = useState([]); // 100% VAZIO: Apenas dados reais inseridos pelo usuário
+  const [activities, setActivities] = useState([]); 
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [completedWorkouts, setCompletedWorkouts] = useState({});
   const [weight, setWeight] = useState(78); // Peso padrão em kg
   const [vo2Max, setVo2Max] = useState(48.5); // VO2 Max inicial estimado
   const [toast, setToast] = useState(null);
 
-  // --- HEALTH HUB (DADOS REAIS ZERADOS) ---
+  // --- HEALTH HUB (DADOS REAIS) ---
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncDate, setLastSyncDate] = useState('Nunca');
-  
-  // Sem dados falsos. Começa nulo até que haja uma importação real.
   const [sleepData, setSleepData] = useState(null);
   const [samsungActivities, setSamsungActivities] = useState([]);
 
-  // --- CÁLCULOS DE ACUMULADOS MENSAIS (BASE REAIS) ---
+  // --- CÁLCULOS DE ACUMULADOS MENSAIS ---
   const totalAppDistance = activities.reduce((a, b) => a + (parseFloat(b.distance) || 0), 0);
   const totalAppCalories = activities.reduce((a, b) => a + (parseInt(b.calories) || 0), 0);
   const totalAppTime = activities.reduce((a, b) => a + (parseInt(b.duration) || 0), 0);
@@ -32,17 +30,11 @@ export default function App() {
   const [adaptedWeeklyPlans, setAdaptedWeeklyPlans] = useState({});
   const [adaptationReason, setAdaptationReason] = useState('');
   
-  const [connectedServices, setConnectedServices] = useState({
-    strava: false,
-    googleFit: false,
-    samsungHealth: false
-  });
-
   // --- ESTADO DO COACH IA (CHAT) ---
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: 'Olá! Sou o seu treinador virtual Run For Cover. Como estamos começando sem dados falsos, importe seu histórico de atividades via CSV ou acompanhe sua planilha de treinos reais aqui.'
+      content: 'Olá! Sou o seu treinador virtual Run For Cover. Sistema limpo e sem dados fictícios. Importe seu CSV ou converse comigo sobre seus treinos.'
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
@@ -106,20 +98,17 @@ export default function App() {
     const savedActivities = localStorage.getItem('rfc_activities');
     const savedWeight = localStorage.getItem('rfc_weight');
     const savedVo2 = localStorage.getItem('rfc_vo2max');
-    const savedServices = localStorage.getItem('rfc_connected_services');
     const savedAdaptedPlans = localStorage.getItem('rfc_adapted_plans');
 
     if (savedWorkouts) setCompletedWorkouts(JSON.parse(savedWorkouts));
     if (savedWeight) setWeight(JSON.parse(savedWeight));
     if (savedVo2) setVo2Max(JSON.parse(savedVo2));
-    if (savedServices) setConnectedServices(JSON.parse(savedServices));
     if (savedAdaptedPlans) setAdaptedWeeklyPlans(JSON.parse(savedAdaptedPlans));
     
-    // DADOS REAIS: Carrega o que o usuário salvou ou deixa limpo (vazio)
     if (savedActivities) {
       setActivities(JSON.parse(savedActivities));
     } else {
-      setActivities([]); // Vazio por padrão para não inventar treinos
+      setActivities([]); 
     }
   }, []);
 
@@ -149,7 +138,19 @@ export default function App() {
     showToast(updated[key] ? 'Treino marcado como concluído! 💪' : 'Treino marcado como pendente.');
   };
 
-  // --- CHAMADA GEMINI API ---
+  const clearAllData = () => {
+    if (window.confirm("Deseja realmente limpar todos os registros e atividades salvas?")) {
+      setActivities([]);
+      setAdaptedWeeklyPlans({});
+      setCompletedWorkouts({});
+      localStorage.removeItem('rfc_activities');
+      localStorage.removeItem('rfc_adapted_plans');
+      localStorage.removeItem('rfc_completed_workouts');
+      showToast('Dados limpos com sucesso!');
+    }
+  };
+
+  // --- CHAMADA GEMINI API COM ROBUSTEZ ---
   const callGeminiAPI = async (userPrompt, systemInstruction) => {
     let delay = 1000;
     for (let attempt = 1; attempt <= 5; attempt++) {
@@ -177,7 +178,7 @@ export default function App() {
     }
   };
 
-  // --- ADAPTADOR DE PLANILHA COM IA ---
+  // --- ADAPTADOR DE PLANILHA COM IA (CORRIGIDO PARA JSON LIMPO) ---
   const handleAdaptPlan = async (reason) => {
     const inputToUse = reason || adaptationReason;
     if (!inputToUse.trim()) return;
@@ -185,21 +186,27 @@ export default function App() {
     setAiLoading(true);
     const currentWeekPlan = trainingPlan[selectedWeek];
     
-    const systemInstruction = `Você é o treinador especialista de corrida do app Run For Cover. O usuário deseja reajustar a Semana ${selectedWeek} devido ao seguinte feedback: "${inputToUse}".
-    Retorne a resposta estritamente em um formato de lista JSON válido:
+    const systemInstruction = `Você é o treinador especialista de corrida do app Run For Cover. O usuário deseja reajustar a Semana ${selectedWeek} devido ao seguinte feedback do dia a dia: "${inputToUse}".
+    Retorne a resposta EXATAMENTE E APENAS em formato de array JSON puro, sem blocos de código markdown ou crases, contendo 6 objetos com as chaves "dia", "tipo", "desc", "zona":
     [
-      {"dia": "Segunda-feira", "tipo": "Kettlebell + Yoga", "desc": "...", "zona": "Força & Yoga"},
+      {"dia": "Segunda-feira", "tipo": "Kettlebell + Yoga", "desc": "...", "zona": "Força"},
       ...
-    ]
-    Apenas o array JSON puro.`;
+    ]`;
 
     const prompt = `Adapte a planilha atual da Semana ${selectedWeek}:
     ${currentWeekPlan.treinos.map(t => `- ${t.dia} (${t.tipo}): ${t.desc}`).join('\n')}
-    Restrição: "${inputToUse}"`;
+    Ocorrência relatada pelo atleta: "${inputToUse}"`;
 
     try {
       const responseText = await callGeminiAPI(prompt, systemInstruction);
-      const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+      
+      // Limpeza robusta de markdown para evitar SyntaxError de JSON
+      let cleanJson = responseText.trim();
+      if (cleanJson.startsWith('```json')) cleanJson = cleanJson.replace(/^```json/, '');
+      if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```/, '');
+      if (cleanJson.endsWith('```')) cleanJson = cleanJson.replace(/```$/, '');
+      cleanJson = cleanJson.trim();
+
       const adaptedArray = JSON.parse(cleanJson);
       
       const updatedPlans = {
@@ -209,10 +216,10 @@ export default function App() {
       
       setAdaptedWeeklyPlans(updatedPlans);
       localStorage.setItem('rfc_adapted_plans', JSON.stringify(updatedPlans));
-      showToast('Planilha recalculada com IA! ✨');
+      showToast('Planilha recalculada com IA com sucesso! ✨');
       setAdaptationReason('');
     } catch (error) {
-      showToast('Erro ao reajustar treinos.', 'error');
+      showToast('Erro ao interpretar JSON da IA. Tente novamente.', 'error');
     } finally {
       setAiLoading(false);
     }
@@ -317,17 +324,15 @@ export default function App() {
   const currentWeekWorkouts = adaptedWeeklyPlans[selectedWeek]?.treinos || trainingPlan[selectedWeek]?.treinos;
   const isUsingAdaptedPlan = !!adaptedWeeklyPlans[selectedWeek];
 
-  // --- BOTÃO PUSH SYNC (AVISO REAL DE NAVEGADOR) ---
   const handlePushSync = () => {
     setIsSyncing(true);
     setTimeout(() => {
       setIsSyncing(false);
       setLastSyncDate(new Date().toLocaleTimeString('pt-BR'));
-      showToast('O navegador web bloqueia acesso direto ao relógio. Use a Importação CSV para dados reais.', 'error');
+      showToast('O navegador web bloqueia acesso Bluetooth direto ao relógio. Use a importação de arquivo CSV.', 'error');
     }, 1500);
   };
 
-  // --- IMPORTADOR DE CSV REAL ---
   const handleCsvUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -339,7 +344,6 @@ export default function App() {
         const lines = text.split('\n');
         const newActivities = [];
 
-        // Leitor simples de CSV do Strava/Excel (Procura colunas de distância e data)
         for (let i = 1; i < lines.length; i++) {
           const row = lines[i].split(',');
           if (row.length > 2) {
@@ -361,20 +365,7 @@ export default function App() {
           localStorage.setItem('rfc_activities', JSON.stringify(updated));
           showToast(`${newActivities.length} atividades reais importadas com sucesso!`);
         } else {
-          // Fallback caso o CSV não tenha o formato exato, adiciona uma base limpa baseada no arquivo
-          const mockReal = {
-            id: Date.now(),
-            date: new Date().toLocaleDateString('pt-BR'),
-            type: file.name.includes('strava') ? 'Corrida Strava' : 'Atividade Importada',
-            distance: 6.2,
-            duration: 38,
-            calories: 410,
-            vo2: vo2Max
-          };
-          const updated = [...activities, mockReal];
-          setActivities(updated);
-          localStorage.setItem('rfc_activities', JSON.stringify(updated));
-          showToast('Arquivo processado e incorporado aos seus registros!');
+          showToast('Nenhuma linha compatível encontrada no CSV.', 'error');
         }
       } catch (err) {
         showToast('Erro ao ler formato do arquivo.', 'error');
@@ -494,14 +485,14 @@ export default function App() {
                 <h3 className="text-base font-extrabold text-white flex items-center gap-2">✨ Adaptador Inteligente de Treino</h3>
                 <div className="flex gap-2 flex-wrap">
                   <button onClick={() => handleAdaptPlan("Dor leve na panturrilha, reduzir impacto.")} className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs text-slate-300">😣 Dor / Prevenção</button>
-                  <button onClick={() => handleAdaptPlan("Cansaço extremo do trabalho, treinos curtos.")} className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs text-slate-300">🥱 Pouca Energia</button>
+                  <button onClick={() => handleAdaptPlan("Joguei futebol quarta-feira (3 partidas de 15 min), ajustar o restante da semana.")} className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs text-slate-300">⚽ Joguei Futebol</button>
                 </div>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={adaptationReason}
                     onChange={(e) => setAdaptationReason(e.target.value)}
-                    placeholder="Descreva sua necessidade (ex: Estou resfriado)..."
+                    placeholder="Descreva sua necessidade (ex: Joguei futebol quarta)..."
                     className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 text-xs text-white"
                   />
                   <button disabled={aiLoading} onClick={() => handleAdaptPlan()} className="bg-emerald-500 text-slate-950 font-black px-6 py-3 rounded-2xl text-xs uppercase">
@@ -596,9 +587,21 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 3: PROGRESSO (100% REAL - SEM DADOS FALSOS) */}
+          {/* TAB 3: PROGRESSO (100% LIMPO) */}
           {activeTab === 'progresso' && (
             <div className="space-y-8">
+              <div className="flex justify-between items-center bg-slate-950 p-4 rounded-3xl border border-slate-800">
+                <div>
+                  <h2 className="text-lg font-black text-white">Painel de Progresso Real</h2>
+                  <p className="text-xs text-slate-400">Gerencie seus arquivos e dados reais</p>
+                </div>
+                {activities.length > 0 && (
+                  <button onClick={clearAllData} className="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold px-4 py-2 rounded-xl hover:bg-rose-500/20 transition">
+                    🗑️ Limpar Todos os Dados
+                  </button>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800">
                   <h3 className="text-slate-400 font-bold text-xs mb-1">📏 Distância Importada</h3>
@@ -622,7 +625,7 @@ export default function App() {
                 <div className="lg:col-span-5 space-y-4">
                   <div>
                     <h2 className="text-xl font-black text-white">Importar Atividades Reais</h2>
-                    <p className="text-xs text-slate-400 mt-1">Carregue o arquivo CSV exportado do Strava ou relógio para popular seus gráficos reais.</p>
+                    <p className="text-xs text-slate-400 mt-1">Carregue o arquivo CSV exportado para popular seus gráficos reais.</p>
                   </div>
                   <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-slate-800 border-dashed rounded-3xl cursor-pointer hover:bg-slate-900/40 transition">
                     <span className="text-4xl mb-2">📁</span>
@@ -635,7 +638,7 @@ export default function App() {
                   <h3 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest">Atividades Cadastradas</h3>
                   {activities.length === 0 ? (
                     <div className="bg-slate-950 border border-slate-800 p-8 rounded-3xl text-center text-slate-500 text-xs">
-                      Nenhuma atividade encontrada. Importe um arquivo CSV para começar.
+                      Nenhuma atividade encontrada. O app está sem dados fictícios. Importe seu CSV para começar.
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
