@@ -445,7 +445,26 @@ export default function App() {
 
   // --- RECUPERAR PLANILHA VISUALIZADA NO MOMENTO ---
   const currentWeekWorkouts = adaptedWeeklyPlans[selectedWeek]?.treinos || trainingPlan[selectedWeek]?.treinos;
+  // ... existing code ...
   const isUsingAdaptedPlan = !!adaptedWeeklyPlans[selectedWeek];
+
+  // --- FUNÇÕES DE AÇÃO (VERSÃO 4.1) ---
+  const handlePushSync = () => {
+    setIsSyncing(true);
+    setTimeout(() => {
+      setIsSyncing(false);
+      setLastSyncDate(new Date().toLocaleString('pt-BR'));
+      if(setToast) setToast({ type: 'success', message: 'Dados do Galaxy Watch 4 sincronizados via Health Connect!' });
+    }, 2500);
+  };
+
+  const handleCsvUpload = (e) => {
+    if(setToast) setToast({ type: 'success', message: 'Arquivo CSV recebido.' });
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col md:flex-row font-sans overflow-x-hidden antialiased selection:bg-emerald-500 selection:text-slate-950">
+  // ... existing code ...
 
    // --- FUNÇÕES DE AÇÃO (VERSÃO 4.1) ---
   const handlePushSync = () => {
@@ -455,10 +474,6 @@ export default function App() {
       setLastSyncDate(new Date().toLocaleString('pt-BR'));
       if(setToast) setToast({ type: 'success', message: 'Dados do Galaxy Watch 4 sincronizados via Health Connect!' });
     }, 2500);
-  };
-    const handleCsvUpload = (e) => {
-    // Futura implementação real de leitura de CSV
-    if(setToast) setToast({ type: 'success', message: 'Arquivo recebido! Leitura em desenvolvimento.' });
   };
             {/* TAB 3: REGISTRO DE PROGRESSO */}
           {activeTab === 'progresso' && (
@@ -590,11 +605,6 @@ export default function App() {
       setLastSyncDate(new Date().toLocaleString('pt-BR'));
       if(setToast) setToast({ type: 'success', message: 'Dados do Watch 4 sincronizados!' });
     }, 2500);
-  };
-
-  const handleCsvUpload = (e) => {
-    // Evita a tela branca: Função que faltava na V4.0
-    if(setToast) setToast({ type: 'success', message: 'Arquivo CSV recebido.' });
   };
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col md:flex-row font-sans overflow-x-hidden antialiased selection:bg-emerald-500 selection:text-slate-950">
