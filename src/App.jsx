@@ -123,32 +123,34 @@ export default function App() {
       )}
 
       {/* HEADER */}
-      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-tr from-orange-500 to-amber-400 p-2 rounded-xl text-slate-950 shadow-lg shadow-orange-500/20">
-            <Activity className="w-6 h-6" />
+      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-4 py-3 shadow-md">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-tr from-orange-500 to-amber-400 p-2 rounded-xl text-slate-950 shadow-lg shadow-orange-500/20">
+              <Activity className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                The Machine <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/35">Meia Maratona 2027</span>
+              </h1>
+              <p className="text-xs text-slate-400">Galaxy Watch 4 • Samsung Health • Strava • Google Health</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-              The Machine <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30">Meia Maratona 2026</span>
-            </h1>
-            <p className="text-xs text-slate-400">Galaxy Watch 4 • Samsung Health • Strava • Google Health</p>
-          </div>
-        </div>
 
-        <div className="hidden md:flex items-center gap-2">
-          <button 
-            onClick={() => handleSync('Galaxy Watch / Samsung Health')} 
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg border border-slate-700 transition"
-          >
-            <Watch className="w-4 h-4 text-cyan-400" /> Sincronizar Watch
-          </button>
-          <button 
-            onClick={() => handleSync('Strava API')} 
-            className="flex items-center gap-2 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-xs font-semibold rounded-lg text-white shadow-md shadow-orange-600/20 transition"
-          >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} /> Sincronizar Strava
-          </button>
+          <div className="hidden md:flex items-center gap-2">
+            <button 
+              onClick={() => handleSync('Galaxy Watch / Samsung Health')} 
+              className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg border border-slate-700 transition"
+            >
+              <Watch className="w-4 h-4 text-cyan-400" /> Sincronizar Watch
+            </button>
+            <button 
+              onClick={() => handleSync('Strava API')} 
+              className="flex items-center gap-2 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-xs font-semibold rounded-lg text-white shadow-md shadow-orange-600/20 transition"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} /> Sincronizar Strava
+            </button>
+          </div>
         </div>
       </header>
 
@@ -301,7 +303,7 @@ export default function App() {
               {/* STATUS & META MEIA MARATONA */}
               <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl space-y-5">
                 <h2 className="text-base font-bold text-white flex items-center gap-2">
-                  <Award className="w-5 h-5 text-amber-400" /> Meta: Meia Maratona 2026
+                  <Award className="w-5 h-5 text-amber-400" /> Meta: Meia Maratona 2027
                 </h2>
                 
                 <div className="bg-gradient-to-br from-orange-950/30 to-amber-950/20 border border-orange-800/40 p-4 rounded-xl space-y-3">
@@ -451,7 +453,7 @@ export default function App() {
                   <p className="text-sm text-slate-400">Periodização baseada em Fartlek científico (Andres, 2024) e desenvolvimento aeróbico (Guilherme, 2004).</p>
                 </div>
                 <span className="px-3 py-1 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-xl text-xs font-semibold self-start">
-                  Foco: Meia Maratona
+                  Foco: Meia Maratona 2027
                 </span>
               </div>
 
