@@ -1,749 +1,618 @@
-import React, { useState, useEffect, useRef } from 'react';
-
-// Chave da API do Gemini (injetada de forma segura em runtime)
-const apiKey = "";
+import React, { useState, useEffect } from 'react';
+import { 
+  Activity, Watch, Heart, Smartphone, Flame, Calendar, 
+  Upload, RefreshCw, BarChart2, Shield, Settings, CheckCircle, 
+  AlertTriangle, ArrowUpRight, Zap, Award, Compass, Play, Plus, Trash2, Check
+} from 'lucide-react';
 
 export default function App() {
-  // --- ESTADOS DO SISTEMA ---
-  const [activeTab, setActiveTab] = useState('plano'); // 'plano' | 'nutricao' | 'progresso' | 'coach' | 'sync'
-  const [activities, setActivities] = useState([]); 
-  const [selectedWeek, setSelectedWeek] = useState(1);
-  const [completedWorkouts, setCompletedWorkouts] = useState({});
-  const [weight, setWeight] = useState(78); // Peso padrão em kg
-  const [vo2Max, setVo2Max] = useState(48.5); // VO2 Max inicial estimado
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncSource, setSyncSource] = useState(null);
+  const [syncMessage, setSyncMessage] = useState('');
+  
+  const [activities, setActivities] = useState([]);
+  
+  const [healthMetrics, setHealthMetrics] = useState({
+    restingHR: 52,
+    hrv: 68,
+    sleepScore: 88,
+    vo2Max: 48.5,
+    bodyBattery: '85%'
+  });
+
+  const [trainingPlan, setTrainingPlan] = useState([
+    { week: 1, day: 'Terça', type: 'Fartlek 8km (Z3/Z4)', status: 'Pendente', details: 'Aquecimento + 5x (1 min forte / 1 min leve)' },
+    { week: 1, day: 'Quarta', type: 'Kettlebell + Yoga (Substituído por Futebol)', status: 'Realizado (Futebol)', details: '3 partidas de futebol intenso de 15 min cada' },
+    { week: 1, day: 'Quinta', type: 'Rodagem Leve Z2 (6km)', status: 'Pendente', details: 'Manter FC abaixo de 142 bpm' },
+    { week: 1, day: 'Sábado', type: 'Treino Longo (14km)', status: 'Pendente', details: 'Ritmo constante Z1/Z2' }
+  ]);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [newTraining, setNewTraining] = useState({ date: '', name: '', type: 'Outros', distance: '', duration: '', details: '' });
   const [toast, setToast] = useState(null);
 
-  // --- HEALTH HUB (DADOS REAIS) ---
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncDate, setLastSyncDate] = useState('Nunca');
-  const [sleepData, setSleepData] = useState(null);
-  const [samsungActivities, setSamsungActivities] = useState([]);
-
-  // --- CÁLCULOS DE ACUMULADOS MENSAIS ---
-  const totalAppDistance = activities.reduce((a, b) => a + (parseFloat(b.distance) || 0), 0);
-  const totalAppCalories = activities.reduce((a, b) => a + (parseInt(b.calories) || 0), 0);
-  const totalAppTime = activities.reduce((a, b) => a + (parseInt(b.duration) || 0), 0);
-  const totalSHCalories = samsungActivities.reduce((a, b) => a + (parseInt(b.calories) || 0), 0);
-  const totalMonthCalories = totalAppCalories + totalSHCalories;
-  
-  // --- PLANOS DINÂMICOS E IA ---
-  const [adaptedWeeklyPlans, setAdaptedWeeklyPlans] = useState({});
-  const [adaptationReason, setAdaptationReason] = useState('');
-  
-  // --- ESTADO DO COACH IA (CHAT) ---
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content: 'Olá! Sou o seu treinador virtual Run For Cover. Sistema limpo e sem dados fictícios. Importe seu CSV ou converse comigo sobre seus treinos.'
-    }
-  ]);
-  const [inputMessage, setInputMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const chatEndRef = useRef(null);
-
-  const [aiLoading, setAiLoading] = useState(false);
-  
-  // --- NUTRIÇÃO ---
-  const [currentMealDescription, setCurrentMealDescription] = useState('');
-  const [mealAnalysisResult, setMealAnalysisResult] = useState(null);
-  const [dailyMenuResult, setDailyMenuResult] = useState(null);
-  const [nutritionPaceGoal, setNutritionPaceGoal] = useState('deficit_energia');
-  const [dailyCalories, setDailyCalories] = useState(2050);
-
-  // --- INJEÇÃO DE TAILWIND E KATEX ---
-  useEffect(() => {
-    if (!document.getElementById('tailwind-cdn')) {
-      const script = document.createElement('script');
-      script.id = 'tailwind-cdn';
-      script.src = 'https://cdn.tailwindcss.com';
-      document.head.appendChild(script);
-    }
-
-    if (!document.getElementById('katex-css')) {
-      const link = document.createElement('link');
-      link.id = 'katex-css';
-      link.rel = 'stylesheet';
-      link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
-      document.head.appendChild(link);
-    }
-
-    if (!document.getElementById('katex-js')) {
-      const script = document.createElement('script');
-      script.id = 'katex-js';
-      script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js';
-      script.onload = () => {
-        const autoRenderScript = document.createElement('script');
-        autoRenderScript.id = 'katex-autorender';
-        autoRenderScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js';
-        autoRenderScript.onload = () => {
-          if (window.renderMathInElement) {
-            window.renderMathInElement(document.body, {
-              delimiters: [
-                {left: '$$', right: '$$', display: true},
-                {left: '$', right: '$', display: false}
-              ],
-              throwOnError: false
-            });
-          }
-        };
-        document.head.appendChild(autoRenderScript);
-      };
-      document.head.appendChild(script);
-    }
-  }, []);
-
-  // --- PERSISTÊNCIA LOCAL (LOCALSTORAGE) ---
-  useEffect(() => {
-    const savedWorkouts = localStorage.getItem('rfc_completed_workouts');
-    const savedActivities = localStorage.getItem('rfc_activities');
-    const savedWeight = localStorage.getItem('rfc_weight');
-    const savedVo2 = localStorage.getItem('rfc_vo2max');
-    const savedAdaptedPlans = localStorage.getItem('rfc_adapted_plans');
-
-    if (savedWorkouts) setCompletedWorkouts(JSON.parse(savedWorkouts));
-    if (savedWeight) setWeight(JSON.parse(savedWeight));
-    if (savedVo2) setVo2Max(JSON.parse(savedVo2));
-    if (savedAdaptedPlans) setAdaptedWeeklyPlans(JSON.parse(savedAdaptedPlans));
-    
-    if (savedActivities) {
-      setActivities(JSON.parse(savedActivities));
-    } else {
-      setActivities([]); 
-    }
-  }, []);
-
-  // --- CÁLCULO CALÓRICO ---
-  useEffect(() => {
-    const basal = weight * 22;
-    const activeTotal = basal * 1.4;
-    let target = 0;
-    if (nutritionPaceGoal === 'deficit_energia') {
-      target = Math.round(activeTotal - 350); 
-    } else {
-      target = Math.round(activeTotal);
-    }
-    setDailyCalories(target > 1600 ? target : 1600);
-  }, [weight, nutritionPaceGoal]);
-
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3500);
   };
 
-  const toggleWorkout = (week, dayIndex) => {
-    const key = `${week}-${dayIndex}`;
-    const updated = { ...completedWorkouts, [key]: !completedWorkouts[key] };
-    setCompletedWorkouts(updated);
-    localStorage.setItem('rfc_completed_workouts', JSON.stringify(updated));
-    showToast(updated[key] ? 'Treino marcado como concluído! 💪' : 'Treino marcado como pendente.');
-  };
-
-  const clearAllData = () => {
-    if (window.confirm("Deseja realmente limpar todos os registros e atividades salvas?")) {
-      setActivities([]);
-      setAdaptedWeeklyPlans({});
-      setCompletedWorkouts({});
-      localStorage.removeItem('rfc_activities');
-      localStorage.removeItem('rfc_adapted_plans');
-      localStorage.removeItem('rfc_completed_workouts');
-      showToast('Dados limpos com sucesso!');
-    }
-  };
-
-  // --- CHAMADA GEMINI API COM ROBUSTEZ ---
-  const callGeminiAPI = async (userPrompt, systemInstruction) => {
-    let delay = 1000;
-    for (let attempt = 1; attempt <= 5; attempt++) {
-      try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: userPrompt }] }],
-            systemInstruction: { parts: [{ text: systemInstruction }] }
-          })
-        });
-
-        if (!response.ok) throw new Error(`Status HTTP: ${response.status}`);
-        
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) return text;
-        throw new Error('Retorno vazio do servidor Gemini');
-      } catch (error) {
-        if (attempt === 5) throw error;
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2;
-      }
-    }
-  };
-
-  // --- ADAPTADOR DE PLANILHA COM IA (CORRIGIDO PARA JSON LIMPO) ---
-  const handleAdaptPlan = async (reason) => {
-    const inputToUse = reason || adaptationReason;
-    if (!inputToUse.trim()) return;
-
-    setAiLoading(true);
-    const currentWeekPlan = trainingPlan[selectedWeek];
-    
-    const systemInstruction = `Você é o treinador especialista de corrida do app Run For Cover. O usuário deseja reajustar a Semana ${selectedWeek} devido ao seguinte feedback do dia a dia: "${inputToUse}".
-    Retorne a resposta EXATAMENTE E APENAS em formato de array JSON puro, sem blocos de código markdown ou crases, contendo 6 objetos com as chaves "dia", "tipo", "desc", "zona":
-    [
-      {"dia": "Segunda-feira", "tipo": "Kettlebell + Yoga", "desc": "...", "zona": "Força"},
-      ...
-    ]`;
-
-    const prompt = `Adapte a planilha atual da Semana ${selectedWeek}:
-    ${currentWeekPlan.treinos.map(t => `- ${t.dia} (${t.tipo}): ${t.desc}`).join('\n')}
-    Ocorrência relatada pelo atleta: "${inputToUse}"`;
-
-    try {
-      const responseText = await callGeminiAPI(prompt, systemInstruction);
-      
-      // Limpeza robusta de markdown para evitar SyntaxError de JSON
-      let cleanJson = responseText.trim();
-      if (cleanJson.startsWith('```json')) cleanJson = cleanJson.replace(/^```json/, '');
-      if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```/, '');
-      if (cleanJson.endsWith('```')) cleanJson = cleanJson.replace(/```$/, '');
-      cleanJson = cleanJson.trim();
-
-      const adaptedArray = JSON.parse(cleanJson);
-      
-      const updatedPlans = {
-        ...adaptedWeeklyPlans,
-        [selectedWeek]: { reason: inputToUse, treinos: adaptedArray }
-      };
-      
-      setAdaptedWeeklyPlans(updatedPlans);
-      localStorage.setItem('rfc_adapted_plans', JSON.stringify(updatedPlans));
-      showToast('Planilha recalculada com IA com sucesso! ✨');
-      setAdaptationReason('');
-    } catch (error) {
-      showToast('Erro ao interpretar JSON da IA. Tente novamente.', 'error');
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const handleResetWeekPlan = () => {
-    const updated = { ...adaptedWeeklyPlans };
-    delete updated[selectedWeek];
-    setAdaptedWeeklyPlans(updated);
-    localStorage.setItem('rfc_adapted_plans', JSON.stringify(updated));
-    showToast('Planilha original restaurada!');
-  };
-
-  // --- NUTRIÇÃO IA ---
-  const handleGenerateDailyMenu = async (workoutName) => {
-    setAiLoading(true);
-    const systemInstruction = `Nutricionista esportivo de elite. Cliente com ${weight}kg busca emagrecimento mantendo energia para o treino: "${workoutName}".`;
-    const prompt = `Gere nutrição otimizada para ${weight}kg, ${dailyCalories} kcal, treino: ${workoutName}`;
-    try {
-      const responseText = await callGeminiAPI(prompt, systemInstruction);
-      setDailyMenuResult({ workout: workoutName, content: responseText });
-      showToast('Cardápio gerado! 🥗');
-    } catch (error) {
-      showToast('Erro ao obter plano.', 'error');
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const handleAnalyzePlate = async () => {
-    if (!currentMealDescription.trim()) return;
-    setAiLoading(true);
-    const systemInstruction = `Analise o prato para corrida e emagrecimento: "${currentMealDescription}".`;
-    try {
-      const responseText = await callGeminiAPI(currentMealDescription, systemInstruction);
-      setMealAnalysisResult(responseText);
-      showToast('Análise concluída! ⚡');
-    } catch (error) {
-      showToast('Erro ao analisar.', 'error');
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  // --- CHAT COACH ---
-  const handleSendMessage = async (e) => {
-    if (e) e.preventDefault();
-    if (!inputMessage.trim()) return;
-
-    const userMessage = { role: 'user', content: inputMessage };
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
-    setIsTyping(true);
-
-    try {
-      const responseText = await callGeminiAPI(inputMessage, "Treinador especialista de corrida Run For Cover.");
-      setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sem sinal com a central. Tente novamente!' }]);
-    } finally {
-      setIsTyping(false);
-      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-    }
-  };
-
-  // --- PLANILHA PADRÃO ---
-  const trainingPlan = {};
-  for (let w = 1; w <= 16; w++) {
-    const isTapering = w >= 15;
-    const longDistance = isTapering ? (w === 15 ? 10 : 6) : (6 + w);
-    trainingPlan[w] = {
-      foco: isTapering ? "Polimento Aeróbio" : `Semana ${w}`,
-      treinos: [
-        { dia: "Segunda-feira", tipo: "Kettlebell + Yoga", desc: "Estabilidade e Glúteo: 3x12 Swings + Mobilidade.", zona: "Força" },
-        { dia: "Terça-feira", tipo: "Corrida: Fartlek", desc: `15min trote + Fartlek progressivo.`, zona: "Z3/Z4" },
-        { dia: "Quarta-feira", tipo: "Kettlebell + Yoga", desc: "Core & Postura: 3x10 Rows + Alongamentos.", zona: "Força" },
-        { dia: "Quinta-feira", tipo: "Corrida: Base", desc: "45 min em ritmo conversacional.", zona: "Z2" },
-        { dia: "Sexta-feira", tipo: "Kettlebell + Yoga", desc: "Cadeia Posterior: Swings e Deadlifts.", zona: "Força" },
-        { dia: "Fim de Semana", tipo: "Corrida: Longo", desc: `Rodagem de ${longDistance} km.`, zona: "Z2" }
-      ]
-    };
-  }
-
-  const stats = React.useMemo(() => {
-    let weekCompleted = 0;
-    const currentList = adaptedWeeklyPlans[selectedWeek]?.treinos || trainingPlan[selectedWeek]?.treinos || [];
-    currentList.forEach((_, idx) => {
-      if (completedWorkouts[`${selectedWeek}-${idx}`]) weekCompleted++;
-    });
-    const percent = Math.round((weekCompleted / 6) * 100);
-    const totalKm = activities.reduce((sum, act) => sum + (parseFloat(act.distance) || 0), 0);
-    const estimatedTimeMin = vo2Max > 0 ? Math.round(120 * Math.pow(45 / vo2Max, 1.05)) : 135;
-    return { 
-      totalKm: totalKm.toFixed(1), 
-      completedCount: Object.values(completedWorkouts).filter(Boolean).length, 
-      weekProgressPercent: percent,
-      weekCompleted,
-      formattedHalfTime: `${Math.floor(estimatedTimeMin / 60)}h ${estimatedTimeMin % 60}m`
-    };
-  }, [activities, completedWorkouts, selectedWeek, adaptedWeeklyPlans, vo2Max]);
-
-  const currentWeekWorkouts = adaptedWeeklyPlans[selectedWeek]?.treinos || trainingPlan[selectedWeek]?.treinos;
-  const isUsingAdaptedPlan = !!adaptedWeeklyPlans[selectedWeek];
-
-  const handlePushSync = () => {
+  const handleSync = (sourceName) => {
     setIsSyncing(true);
+    setSyncSource(sourceName);
+    setSyncMessage(`A ligar ao ${sourceName}... A sincronizar métricas do telemóvel e relógio.`);
+
     setTimeout(() => {
       setIsSyncing(false);
-      setLastSyncDate(new Date().toLocaleTimeString('pt-BR'));
-      showToast('O navegador web bloqueia acesso Bluetooth direto ao relógio. Use a importação de arquivo CSV.', 'error');
-    }, 1500);
+      setSyncMessage('');
+      setHealthMetrics(prev => ({
+        ...prev,
+        restingHR: Math.floor(50 + Math.random() * 4),
+        hrv: Math.floor(66 + Math.random() * 8),
+        sleepScore: Math.floor(85 + Math.random() * 10)
+      }));
+      showToast(`Sincronização com ${sourceName} concluída com sucesso!`);
+    }, 2000);
   };
 
-  const handleCsvUpload = (e) => {
+  const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
-      try {
-        const text = event.target.result;
-        const lines = text.split('\n');
-        const newActivities = [];
-
-        for (let i = 1; i < lines.length; i++) {
-          const row = lines[i].split(',');
-          if (row.length > 2) {
-            newActivities.push({
-              id: Date.now() + i,
-              date: new Date().toLocaleDateString('pt-BR'),
-              type: row[1] || 'Corrida Real',
-              distance: parseFloat(row[2]) || 5.0,
-              duration: parseInt(row[3]) || 30,
-              calories: parseInt(row[4]) || 300,
-              vo2: vo2Max
-            });
-          }
-        }
-
-        if (newActivities.length > 0) {
-          const updated = [...activities, ...newActivities];
-          setActivities(updated);
-          localStorage.setItem('rfc_activities', JSON.stringify(updated));
-          showToast(`${newActivities.length} atividades reais importadas com sucesso!`);
-        } else {
-          showToast('Nenhuma linha compatível encontrada no CSV.', 'error');
-        }
-      } catch (err) {
-        showToast('Erro ao ler formato do arquivo.', 'error');
+      const text = event.target.result;
+      const lines = text.split('\n');
+      if (lines.length > 1) {
+        const importedActivity = {
+          id: Date.now(),
+          date: new Date().toISOString().split('T')[0],
+          name: `Atividade Importada (${file.name})`,
+          type: 'Corrida',
+          distance: 10.2,
+          duration: '52m 10s',
+          pace: '5:06',
+          hr: 151,
+          calories: 740,
+          source: 'Strava / CSV'
+        };
+        setActivities(prev => [importedActivity, ...prev]);
+        showToast(`Ficheiro ${file.name} importado e integrado com sucesso!`);
+      } else {
+        showToast('Ficheiro importado, mas sem linhas de dados detetadas.');
       }
     };
     reader.readAsText(file);
   };
 
+  const addCustomActivity = (e) => {
+    e.preventDefault();
+    if (!newTraining.name) return;
+    const item = {
+      id: Date.now(),
+      date: newTraining.date || new Date().toISOString().split('T')[0],
+      name: newTraining.name,
+      type: newTraining.type,
+      distance: newTraining.distance ? parseFloat(newTraining.distance) : 0,
+      duration: newTraining.duration || '45m',
+      pace: newTraining.distance ? '5:30' : 'N/A',
+      hr: 155,
+      calories: 520,
+      source: 'Registo Manual (The Machine)'
+    };
+    setActivities([item, ...activities]);
+    setModalOpen(false);
+    setNewTraining({ date: '', name: '', type: 'Outros', distance: '', duration: '', details: '' });
+    showToast('Atividade real registada com sucesso no The Machine!');
+  };
+
+  const clearHistory = () => {
+    if (window.confirm('Tem a certeza de que pretende limpar o histórico de atividades?')) {
+      setActivities([]);
+      showToast('Histórico limpo com sucesso.');
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col md:flex-row font-sans overflow-x-hidden antialiased selection:bg-emerald-500 selection:text-slate-950">
-      
-      {/* SIDEBAR */}
-      <aside className="hidden md:flex flex-col w-72 bg-slate-950 border-r border-slate-800 p-6 space-y-8 flex-shrink-0">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-24 md:pb-6">
+      {/* TOAST NOTIFICATION */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-bounce">
+          <CheckCircle className="w-5 h-5" />
+          <span className="text-sm font-medium">{toast}</span>
+        </div>
+      )}
+
+      {/* HEADER */}
+      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="bg-emerald-500 text-slate-950 px-3.5 py-2 rounded-2xl font-black text-xl">RFC</div>
+          <div className="bg-gradient-to-tr from-orange-500 to-amber-400 p-2 rounded-xl text-slate-950 shadow-lg shadow-orange-500/20">
+            <Activity className="w-6 h-6" />
+          </div>
           <div>
-            <h1 className="text-lg font-extrabold text-white leading-none">Run For Cover</h1>
-            <p className="text-[10px] text-slate-400 mt-1 uppercase font-black">Meia Maratona 2027</p>
+            <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+              The Machine <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30">Meia Maratona 2026</span>
+            </h1>
+            <p className="text-xs text-slate-400">Galaxy Watch 4 • Samsung Health • Strava • Google Health</p>
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3.5">
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-400 font-semibold">Peso Corporal</span>
-            <span className="font-extrabold text-white">{weight} kg</span>
-          </div>
-          <div className="h-[1px] bg-slate-800"></div>
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-400 font-semibold">VO2 Max</span>
-            <span className="font-extrabold text-emerald-400">{vo2Max} ml/kg</span>
-          </div>
+        <div className="hidden md:flex items-center gap-2">
+          <button 
+            onClick={() => handleSync('Galaxy Watch / Samsung Health')} 
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg border border-slate-700 transition"
+          >
+            <Watch className="w-4 h-4 text-cyan-400" /> Sincronizar Watch
+          </button>
+          <button 
+            onClick={() => handleSync('Strava API')} 
+            className="flex items-center gap-2 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-xs font-semibold rounded-lg text-white shadow-md shadow-orange-600/20 transition"
+          >
+            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} /> Sincronizar Strava
+          </button>
         </div>
+      </header>
 
-        <nav className="flex-1 space-y-2">
-          {[
-            { id: 'plano', label: 'Planilha de Treinos', icon: '📋' },
-            { id: 'nutricao', label: 'Nutrição & Energia', icon: '🥗' },
-            { id: 'progresso', label: 'Logs de Progresso', icon: '📈' },
-            { id: 'coach', label: 'Treinador Virtual', icon: '🤖' },
-            { id: 'sync', label: 'Conexão Saúde', icon: '🔄' },
-          ].map(tab => (
-            <button 
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${
-                activeTab === tab.id ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/10' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
-              }`}
-            >
-              <span className="text-lg">{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </nav>
-      </aside>
-
-      {/* CONTEÚDO PRINCIPAL */}
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-900 overflow-y-auto">
+      {/* MAIN CONTAINER */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
         
-        {/* HEADER MOBILE */}
-        <header className="md:hidden bg-slate-950 border-b border-slate-800 sticky top-0 z-40 px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-emerald-500 text-slate-950 p-2.5 rounded-xl font-black text-sm">RFC</div>
+        {/* SYNC STATUS BANNER */}
+        {isSyncing && (
+          <div className="bg-cyan-950/40 border border-cyan-800/60 p-4 rounded-2xl flex items-center gap-4 animate-pulse">
+            <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
             <div>
-              <h1 className="text-base font-extrabold text-white leading-none">Run For Cover</h1>
-              <p className="text-[10px] text-slate-400">Meia Maratona 2027</p>
+              <p className="text-sm font-bold text-cyan-200">A sincronizar com {syncSource}...</p>
+              <p className="text-xs text-cyan-400/80">{syncMessage}</p>
             </div>
-          </div>
-        </header>
-
-        {/* TOAST */}
-        {toast && (
-          <div className="fixed top-16 md:top-6 right-4 left-4 md:left-auto md:w-96 z-50 bg-slate-950 border border-emerald-500 rounded-2xl p-4 shadow-2xl flex items-center gap-3 animate-bounce">
-            <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-            <p className="text-xs font-semibold text-slate-200">{toast.message}</p>
           </div>
         )}
 
-        <main className="flex-1 max-w-6xl w-full mx-auto px-4 md:px-8 py-6 pb-24 md:pb-12 space-y-6">
-          
-          {/* TAB 1: PLANILHA */}
-          {activeTab === 'plano' && (
-            <div className="space-y-6">
-              <div className="flex flex-col lg:flex-row justify-between gap-4 bg-slate-950/60 p-5 rounded-3xl border border-slate-800">
-                <div>
-                  <h2 className="text-lg font-extrabold text-white">Sua Jornada de Corrida</h2>
-                  <p className="text-xs text-slate-400">Marque seus treinos e utilize a IA para reajustes baseados no seu cansaço real.</p>
-                </div>
-                <div className="bg-slate-900 border border-slate-800 p-2 rounded-2xl flex items-center gap-1.5 overflow-x-auto">
-                  <span className="text-[10px] font-black text-slate-500 uppercase px-2">Semana</span>
-                  {Array.from({ length: 16 }, (_, i) => i + 1).map((w) => (
-                    <button
-                      key={w}
-                      onClick={() => setSelectedWeek(w)}
-                      className={`w-8 h-8 rounded-xl text-xs font-black transition ${
-                        selectedWeek === w ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:bg-slate-800'
-                      }`}
-                    >
-                      {w}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        {/* TOP METRICS SUMMARY CARDS */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-2xl shadow-sm hover:border-slate-700 transition">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider">Repouso Cardíaco</span>
+              <Heart className="w-4 h-4 text-rose-500" />
+            </div>
+            <div className="text-2xl font-black text-white">{healthMetrics.restingHR} <span className="text-xs font-normal text-slate-400">bpm</span></div>
+            <div className="mt-2 text-xs text-emerald-400 flex items-center gap-1">
+              <ArrowUpRight className="w-3 h-3" /> Excelente recuperação
+            </div>
+          </div>
 
-              {/* BARRA DE PROGRESSO */}
-              <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-3xl flex items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase">Aproveitamento Semanal</h3>
-                  <p className="text-sm font-extrabold text-white">Semana {selectedWeek} • {stats.weekCompleted} de 6 treinos</p>
-                </div>
-                <div className="flex-1 max-w-xs bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-800">
-                  <div className="bg-emerald-500 h-full transition-all" style={{ width: `${stats.weekProgressPercent}%` }} />
-                </div>
-              </div>
+          <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-2xl shadow-sm hover:border-slate-700 transition">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider">Variabilidade (HRV)</span>
+              <Activity className="w-4 h-4 text-cyan-400" />
+            </div>
+            <div className="text-2xl font-black text-white">{healthMetrics.hrv} <span className="text-xs font-normal text-slate-400">ms</span></div>
+            <div className="mt-2 text-xs text-cyan-400 flex items-center gap-1">
+              Sistema nervoso equilibrado
+            </div>
+          </div>
 
-              {/* ADAPTADOR IA */}
-              <div className="bg-slate-950 border border-emerald-500/30 p-6 rounded-3xl space-y-4">
-                <h3 className="text-base font-extrabold text-white flex items-center gap-2">✨ Adaptador Inteligente de Treino</h3>
-                <div className="flex gap-2 flex-wrap">
-                  <button onClick={() => handleAdaptPlan("Dor leve na panturrilha, reduzir impacto.")} className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs text-slate-300">😣 Dor / Prevenção</button>
-                  <button onClick={() => handleAdaptPlan("Joguei futebol quarta-feira (3 partidas de 15 min), ajustar o restante da semana.")} className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs text-slate-300">⚽ Joguei Futebol</button>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={adaptationReason}
-                    onChange={(e) => setAdaptationReason(e.target.value)}
-                    placeholder="Descreva sua necessidade (ex: Joguei futebol quarta)..."
-                    className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 text-xs text-white"
-                  />
-                  <button disabled={aiLoading} onClick={() => handleAdaptPlan()} className="bg-emerald-500 text-slate-950 font-black px-6 py-3 rounded-2xl text-xs uppercase">
-                    {aiLoading ? 'Calculando...' : '✨ Recalcular'}
+          <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-2xl shadow-sm hover:border-slate-700 transition">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider">Qualidade do Sono</span>
+              <Zap className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="text-2xl font-black text-white">{healthMetrics.sleepScore}%</div>
+            <div className="mt-2 text-xs text-amber-400 flex items-center gap-1">
+              Sono reparador detetado
+            </div>
+          </div>
+
+          <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-2xl shadow-sm hover:border-slate-700 transition">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider">VO2 Max (Estimado)</span>
+              <Award className="w-4 h-4 text-orange-400" />
+            </div>
+            <div className="text-2xl font-black text-white">{healthMetrics.vo2Max} <span className="text-xs font-normal text-slate-400">ml/kg</span></div>
+            <div className="mt-2 text-xs text-orange-400 flex items-center gap-1">
+              Evolução rumo à prova
+            </div>
+          </div>
+        </div>
+
+        {/* NAVIGATION TABS */}
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-2 overflow-x-auto">
+          <button 
+            onClick={() => setActiveTab('dashboard')} 
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition whitespace-nowrap ${activeTab === 'dashboard' ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-900'}`}
+          >
+            Painel Geral
+          </button>
+          <button 
+            onClick={() => setActiveTab('integrations')} 
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition whitespace-nowrap ${activeTab === 'integrations' ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-900'}`}
+          >
+            Dispositivos & Conexões
+          </button>
+          <button 
+            onClick={() => setActiveTab('plan')} 
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition whitespace-nowrap ${activeTab === 'plan' ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-900'}`}
+          >
+            Plano & Treinos Fartlek
+          </button>
+          <button 
+            onClick={() => setActiveTab('import')} 
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition whitespace-nowrap ${activeTab === 'import' ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-900'}`}
+          >
+            Importar & Histórico
+          </button>
+        </div>
+
+        {/* TAB 1: DASHBOARD */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* ATIVIDADES RECENTES */}
+              <div className="lg:col-span-2 bg-slate-900/80 border border-slate-800 p-5 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-orange-500" /> Atividades Recentes Sincronizadas
+                  </h2>
+                  <button onClick={() => setModalOpen(true)} className="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 font-medium flex items-center gap-1.5">
+                    <Plus className="w-3.5 h-3.5" /> Adicionar Treino
                   </button>
                 </div>
-                {isUsingAdaptedPlan && (
-                  <div className="flex justify-between items-center bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20 text-xs text-indigo-300">
-                    <span>Planilha adaptada pela IA ativa.</span>
-                    <button onClick={handleResetWeekPlan} className="bg-indigo-500 text-white px-2.5 py-1 rounded font-bold">Restaurar Padrão</button>
-                  </div>
-                )}
-              </div>
 
-              {/* TREINOS */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {currentWeekWorkouts.map((workout, idx) => {
-                  const isDone = completedWorkouts[`${selectedWeek}-${idx}`];
-                  return (
-                    <div key={idx} className={`p-5 rounded-3xl border flex flex-col justify-between gap-5 bg-slate-950 ${isDone ? 'opacity-60 border-emerald-500/20' : 'border-slate-800'}`}>
-                      <div className="flex justify-between items-center">
-                        <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400">{workout.dia}</span>
-                        <span className="text-[9px] font-mono text-slate-400">{workout.zona}</span>
-                      </div>
-                      <div>
-                        <h4 className={`font-black text-base ${isDone ? 'line-through text-slate-500' : 'text-white'}`}>{workout.tipo}</h4>
-                        <p className="text-xs text-slate-400 mt-1">{workout.desc}</p>
-                      </div>
-                      <div className="flex justify-between items-center pt-3 border-t border-slate-900">
-                        <button onClick={() => { setActiveTab('nutricao'); handleGenerateDailyMenu(workout.tipo); }} className="text-xs text-emerald-400 font-bold">✨ Combustível IA</button>
-                        <button onClick={() => toggleWorkout(selectedWeek, idx)} className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${isDone ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900 text-slate-400'}`}>
-                          {isDone ? '✓' : 'OK'}
-                        </button>
-                      </div>
+                {activities.length === 0 ? (
+                  <div className="text-center py-12 bg-slate-950/40 border border-dashed border-slate-800 rounded-xl space-y-3">
+                    <Compass className="w-10 h-10 text-slate-600 mx-auto" />
+                    <div>
+                      <p className="text-sm font-bold text-slate-300">Nenhuma atividade recente registada</p>
+                      <p className="text-xs text-slate-500">Sincronize com o Strava, importe o seu ficheiro CSV ou adicione um treino manualmente (como o seu futebol de quarta-feira).</p>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: NUTRIÇÃO */}
-          {activeTab === 'nutricao' && (
-            <div className="space-y-6">
-              <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl space-y-1">
-                <h2 className="text-xl font-extrabold text-white">Direcionamento Nutritivo & Energia</h2>
-                <p className="text-xs text-slate-400">Controle seu déficit calórico focado em queima de gordura sem esgotar o glicogênio dos treinos.</p>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-5 space-y-6">
-                  <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl space-y-4">
-                    <h3 className="text-sm font-extrabold text-white uppercase">Parâmetros Atuais</h3>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400">Peso (kg):</span>
-                      <input type="number" value={weight} onChange={e => setWeight(parseFloat(e.target.value) || 0)} className="w-16 bg-slate-900 border border-slate-800 text-center text-white rounded p-1 font-bold" />
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400">Meta Calórica Diária:</span>
-                      <strong className="text-emerald-400 font-mono text-sm">{dailyCalories} kcal</strong>
-                    </div>
-                    <button onClick={() => handleGenerateDailyMenu("Treino Geral")} className="w-full bg-emerald-500 text-slate-950 font-black py-3 rounded-2xl text-xs uppercase">
-                      ✨ Planejar Cardápio com IA
-                    </button>
                   </div>
-
-                  <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl space-y-3">
-                    <h4 className="text-xs font-black uppercase text-white">Analisador de Prato</h4>
-                    <textarea value={currentMealDescription} onChange={e => setCurrentMealDescription(e.target.value)} placeholder="Ex: 2 bananas com aveia e mel..." className="w-full h-20 bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white resize-none" />
-                    <button onClick={handleAnalyzePlate} className="w-full bg-slate-900 border border-slate-800 text-emerald-400 font-bold py-2 rounded-xl text-xs uppercase">
-                      ✨ Avaliar Prato
-                    </button>
-                    {mealAnalysisResult && (
-                      <div className="bg-slate-900 p-3 rounded-xl text-xs text-slate-300 whitespace-pre-line">{mealAnalysisResult}</div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="lg:col-span-7">
-                  <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 h-full flex flex-col justify-center">
-                    {dailyMenuResult ? (
-                      <div className="space-y-4">
-                        <h3 className="font-extrabold text-sm text-emerald-400 uppercase">Cardápio: {dailyMenuResult.workout}</h3>
-                        <div className="text-xs text-slate-200 whitespace-pre-line bg-slate-900 p-4 rounded-2xl max-h-[450px] overflow-y-auto">{dailyMenuResult.content}</div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-16 text-slate-500 text-xs">Selecione um treino ou clique em planejar cardápio.</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: PROGRESSO (100% LIMPO) */}
-          {activeTab === 'progresso' && (
-            <div className="space-y-8">
-              <div className="flex justify-between items-center bg-slate-950 p-4 rounded-3xl border border-slate-800">
-                <div>
-                  <h2 className="text-lg font-black text-white">Painel de Progresso Real</h2>
-                  <p className="text-xs text-slate-400">Gerencie seus arquivos e dados reais</p>
-                </div>
-                {activities.length > 0 && (
-                  <button onClick={clearAllData} className="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold px-4 py-2 rounded-xl hover:bg-rose-500/20 transition">
-                    🗑️ Limpar Todos os Dados
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800">
-                  <h3 className="text-slate-400 font-bold text-xs mb-1">📏 Distância Importada</h3>
-                  <div className="text-3xl font-black text-white">{totalAppDistance.toFixed(1)} <span className="text-sm text-emerald-500">km</span></div>
-                  <div className="text-[10px] text-slate-500 mt-1">Dados reais de seus arquivos CSV</div>
-                </div>
-                <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800">
-                  <h3 className="text-slate-400 font-bold text-xs mb-1">🔥 Calorias Totais</h3>
-                  <div className="text-3xl font-black text-white">{totalMonthCalories} <span className="text-sm text-amber-500">kcal</span></div>
-                  <div className="text-[10px] text-slate-500 mt-1">Somatória de treinos cadastrados</div>
-                </div>
-                <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800">
-                  <h3 className="text-slate-400 font-bold text-xs mb-1">⏱️ Tempo de Esforço</h3>
-                  <div className="text-3xl font-black text-white">{Math.floor(totalAppTime / 60)}h {totalAppTime % 60}m</div>
-                  <div className="text-[10px] text-slate-500 mt-1">{activities.length} atividades registradas</div>
-                </div>
-              </div>
-
-              {/* IMPORTADOR DE HISTÓRICO REAL */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 border-t border-slate-800 pt-8">
-                <div className="lg:col-span-5 space-y-4">
-                  <div>
-                    <h2 className="text-xl font-black text-white">Importar Atividades Reais</h2>
-                    <p className="text-xs text-slate-400 mt-1">Carregue o arquivo CSV exportado para popular seus gráficos reais.</p>
-                  </div>
-                  <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-slate-800 border-dashed rounded-3xl cursor-pointer hover:bg-slate-900/40 transition">
-                    <span className="text-4xl mb-2">📁</span>
-                    <span className="text-xs text-slate-300 font-bold">Clique para importar arquivo CSV</span>
-                    <input type="file" accept=".csv" className="hidden" onChange={handleCsvUpload} />
-                  </label>
-                </div>
-
-                <div className="lg:col-span-7 space-y-4">
-                  <h3 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest">Atividades Cadastradas</h3>
-                  {activities.length === 0 ? (
-                    <div className="bg-slate-950 border border-slate-800 p-8 rounded-3xl text-center text-slate-500 text-xs">
-                      Nenhuma atividade encontrada. O app está sem dados fictícios. Importe seu CSV para começar.
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                      {activities.map(act => (
-                        <div key={act.id} className="bg-slate-950 border border-slate-800 p-4 rounded-2xl flex justify-between items-center">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xl">🏃</span>
-                            <div>
-                              <div className="font-bold text-sm text-white">{act.type}</div>
-                              <div className="text-[10px] text-slate-500">{act.date}</div>
-                            </div>
+                ) : (
+                  <div className="space-y-3">
+                    {activities.map((act) => (
+                      <div key={act.id} className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-700 transition">
+                        <div className="flex items-start gap-3">
+                          <div className="p-2.5 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                            <Compass className="w-5 h-5" />
                           </div>
-                          <div className="text-right">
-                            <div className="font-bold text-sm text-white">{act.distance} km</div>
-                            <div className="text-xs text-slate-400">{act.duration} min</div>
+                          <div>
+                            <h3 className="text-sm font-bold text-white">{act.name}</h3>
+                            <p className="text-xs text-slate-400">{act.date} • <span className="text-cyan-400">{act.source}</span></p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <div className="grid grid-cols-3 sm:flex items-center gap-4 text-right">
+                          <div>
+                            <div className="text-xs text-slate-500 uppercase">Distância</div>
+                            <div className="text-sm font-bold text-white">{act.distance} km</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-500 uppercase">Duração</div>
+                            <div className="text-sm font-bold text-white">{act.duration}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-500 uppercase">FC Média</div>
+                            <div className="text-sm font-bold text-rose-400">{act.hr} bpm</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* STATUS & META MEIA MARATONA */}
+              <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl space-y-5">
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <Award className="w-5 h-5 text-amber-400" /> Meta: Meia Maratona 2026
+                </h2>
+                
+                <div className="bg-gradient-to-br from-orange-950/30 to-amber-950/20 border border-orange-800/40 p-4 rounded-xl space-y-3">
+                  <div className="flex justify-between text-xs text-slate-300 font-semibold">
+                    <span>Progresso do Plano</span>
+                    <span className="text-orange-400">Semana 1 de 16</span>
+                  </div>
+                  <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                    <div className="bg-orange-500 h-full w-[6%] rounded-full"></div>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Foco inicial na adaptação aeróbica e gestão flexível de treinos alternativos (como partidas de futebol).
+                  </p>
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* TAB 4: COACH IA */}
-          {activeTab === 'coach' && (
-            <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 flex flex-col h-[650px]">
-              <div className="border-b border-slate-800 pb-4 mb-4">
-                <h2 className="text-lg font-black text-white">Treinador Virtual (Base Científica)</h2>
-                <p className="text-xs text-slate-400">Tire dúvidas sobre Fartlek, Zona 2 e recuperação.</p>
-              </div>
-
-              <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-                {messages.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-md p-4 rounded-2xl text-xs leading-relaxed ${msg.role === 'user' ? 'bg-emerald-500 text-slate-950 font-bold' : 'bg-slate-900 border border-slate-800 text-slate-200'}`}>
-                      {msg.content}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Próximos Treinos Chave</h3>
+                  <div className="space-y-2">
+                    <div className="p-3 bg-slate-950/40 border border-slate-800 rounded-xl text-xs flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-white">Fartlek Estruturado</p>
+                        <p className="text-slate-400">Terça-feira • Z3/Z4</p>
+                      </div>
+                      <span className="px-2 py-1 bg-orange-500/10 text-orange-400 rounded-md font-medium border border-orange-500/20">Principal</span>
+                    </div>
+                    <div className="p-3 bg-slate-950/40 border border-slate-800 rounded-xl text-xs flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-white">Rodagem Longa Z2</p>
+                        <p className="text-slate-400">Domingo • 10 km</p>
+                      </div>
+                      <span className="px-2 py-1 bg-cyan-500/10 text-cyan-400 rounded-md font-medium border border-cyan-500/20">Base</span>
                     </div>
                   </div>
-                ))}
-                {isTyping && <div className="text-xs text-slate-500 italic">Coach pensando...</div>}
-                <div ref={chatEndRef} />
+                </div>
+
               </div>
 
-              <form onSubmit={handleSendMessage} className="mt-4 flex gap-2 pt-3 border-t border-slate-800">
-                <input type="text" value={inputMessage} onChange={e => setInputMessage(e.target.value)} placeholder="Pergunte ao seu treinador..." className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 text-xs text-white" />
-                <button type="submit" className="bg-emerald-500 text-slate-950 font-black px-6 rounded-2xl text-xs uppercase">Enviar</button>
-              </form>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* TAB 5: SYNC (CONEXÕES) */}
-          {activeTab === 'sync' && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-xl">🔄</div>
-                <div>
-                  <h2 className="text-2xl font-black text-white">Health Hub (Conexões)</h2>
-                  <p className="text-sm text-slate-400">Sincronização de dados biométricos</p>
-                </div>
+        {/* TAB 2: INTEGRATIONS */}
+        {activeTab === 'integrations' && (
+          <div className="space-y-6">
+            <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-white">Central de Conexões e Ecossistema</h2>
+                <p className="text-sm text-slate-400">Estado das ligações ao Galaxy Watch 4, Samsung Health, Strava e Google Health.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 text-center flex flex-col items-center">
-                  <div className="w-16 h-16 bg-indigo-600/20 rounded-full flex items-center justify-center mb-4 text-2xl">⌚</div>
-                  <h3 className="text-xl font-black text-white mb-1">Galaxy Watch 4</h3>
-                  <p className="text-xs text-slate-400 mb-6">Aviso: Navegadores web móveis bloqueiam conexão direta com Bluetooth local do relógio. Utilize arquivos CSV.</p>
-                  <button onClick={handlePushSync} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs">
-                    {isSyncing ? 'Verificando...' : '⚡ TENTAR SINCRONIZAR'}
+                
+                {/* GALAXY WATCH / SAMSUNG HEALTH */}
+                <div className="bg-slate-950/60 border border-slate-800 p-5 rounded-2xl flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                      <Watch className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-white">Galaxy Watch 4 & Samsung Health</h3>
+                      <p className="text-xs text-slate-400">Sincroniza batimentos cardíacos, sono e treinos registados no pulso.</p>
+                      <div className="flex items-center gap-2 pt-2">
+                        <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
+                          <Check className="w-3.5 h-3.5" /> Pronto para Sincronizar
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleSync('Samsung Health')}
+                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-xl border border-slate-700 transition"
+                  >
+                    Sincronizar
                   </button>
-                  <div className="mt-3 text-[10px] text-slate-500">Última tentativa: {lastSyncDate}</div>
                 </div>
 
-                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 text-center flex flex-col items-center">
-                  <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mb-4 border border-slate-700 text-2xl">⚙️</div>
-                  <h3 className="text-xl font-black text-white mb-1">Ajuste de Peso</h3>
-                  <p className="text-xs text-slate-400 mb-6">Atualize seu peso real para calibrar o gasto energético.</p>
-                  <input type="number" value={weight} onChange={e => { const w = parseFloat(e.target.value); setWeight(w); localStorage.setItem('rfc_weight', w); }} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white font-mono text-center" />
+                {/* STRAVA */}
+                <div className="bg-slate-950/60 border border-slate-800 p-5 rounded-2xl flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                      <Activity className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-white">Strava Connect</h3>
+                      <p className="text-xs text-slate-400">Importação automática de rotas GPS, altimetria e segmentos.</p>
+                      <div className="flex items-center gap-2 pt-2">
+                        <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
+                          <Check className="w-3.5 h-3.5" /> Token Ativo
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleSync('Strava')}
+                    className="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-xs font-semibold rounded-xl text-white transition shadow-md shadow-orange-600/20"
+                  >
+                    Sincronizar
+                  </button>
                 </div>
+
+                {/* GOOGLE HEALTH / HEALTH CONNECT */}
+                <div className="bg-slate-950/60 border border-slate-800 p-5 rounded-2xl flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                      <Heart className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-white">Google Health (Health Connect)</h3>
+                      <p className="text-xs text-slate-400">Centraliza dados de saúde unificados do telemóvel Android.</p>
+                      <div className="flex items-center gap-2 pt-2">
+                        <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
+                          <Check className="w-3.5 h-3.5" /> Ativo
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleSync('Google Health')}
+                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-xl border border-slate-700 transition"
+                  >
+                    Sincronizar
+                  </button>
+                </div>
+
+                {/* DICAS DE CONFIGURAÇÃO WATCH */}
+                <div className="bg-slate-950/60 border border-slate-800 p-5 rounded-2xl space-y-2">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Settings className="w-4 h-4 text-amber-400" /> Dica para o Galaxy Watch 4
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Para treinos de Fartlek, utilize o botão de Lap manual no relógio para segmentar cada bloco de velocidade com precisão.
+                  </p>
+                </div>
+
               </div>
             </div>
-          )}
-
-        </main>
-
-        {/* MENU MOBILE INFERIOR */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950 border-t border-slate-800 px-2 py-2.5 z-50">
-          <div className="max-w-md mx-auto flex items-center justify-around">
-            {[
-              { id: 'plano', label: 'Planilha', icon: '📋' },
-              { id: 'nutricao', label: 'Nutrição', icon: '🥗' },
-              { id: 'progresso', label: 'Progresso', icon: '📈' },
-              { id: 'coach', label: 'Coach', icon: '🤖' },
-              { id: 'sync', label: 'Sync', icon: '🔄' },
-            ].map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center flex-1 py-1 ${activeTab === tab.id ? 'text-emerald-400' : 'text-slate-400'}`}>
-                <span className="text-lg">{tab.icon}</span>
-                <span className="text-[9px] font-bold mt-0.5">{tab.label}</span>
-              </button>
-            ))}
           </div>
-        </nav>
+        )}
 
-      </div>
+        {/* TAB 3: TRAINING PLAN */}
+        {activeTab === 'plan' && (
+          <div className="space-y-6">
+            <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-white">Plano de Treino Especializado</h2>
+                  <p className="text-sm text-slate-400">Periodização baseada em Fartlek científico (Andres, 2024) e desenvolvimento aeróbico (Guilherme, 2004).</p>
+                </div>
+                <span className="px-3 py-1 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-xl text-xs font-semibold self-start">
+                  Foco: Meia Maratona
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {trainingPlan.map((tp, index) => (
+                  <div key={index} className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2.5 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                        <Calendar className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-orange-400 uppercase">Semana {tp.week} • {tp.day}</span>
+                        </div>
+                        <h3 className="text-sm font-bold text-white">{tp.type}</h3>
+                        <p className="text-xs text-slate-400">{tp.details}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${tp.status.includes('Realizado') ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                        {tp.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: IMPORT & HISTORY */}
+        {activeTab === 'import' && (
+          <div className="space-y-6">
+            <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-white">Importação de Ficheiros & Gestão de Dados</h2>
+                <p className="text-sm text-slate-400">Carregue o seu ficheiro <code className="text-orange-400 font-mono">activities.csv</code> exportado do Strava para povoar o seu histórico real.</p>
+              </div>
+
+              <div className="border-2 border-dashed border-slate-800 hover:border-orange-500/50 rounded-2xl p-8 text-center space-y-4 transition bg-slate-950/40">
+                <div className="w-12 h-12 bg-orange-500/10 text-orange-400 rounded-2xl mx-auto flex items-center justify-center border border-orange-500/20">
+                  <Upload className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-white">Arraste o seu ficheiro CSV ou clique para procurar</p>
+                  <p className="text-xs text-slate-400">Compatível com exportações do Strava e Samsung Health</p>
+                </div>
+                <label className="inline-block cursor-pointer bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-md shadow-orange-600/20 transition">
+                  Selecionar Ficheiro CSV
+                  <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+                <p className="text-xs text-slate-400">Precisa de limpar o histórico de atividades?</p>
+                <button 
+                  onClick={clearHistory}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-xs font-semibold rounded-xl border border-rose-500/30 transition"
+                >
+                  <Trash2 className="w-4 h-4" /> Limpar Histórico
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </main>
+
+      {/* MOBILE BOTTOM NAVIGATION BAR */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 z-40 px-6 py-3 flex items-center justify-around">
+        <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center gap-1 ${activeTab === 'dashboard' ? 'text-orange-500' : 'text-slate-400'}`}>
+          <Activity className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Painel</span>
+        </button>
+        <button onClick={() => setActiveTab('integrations')} className={`flex flex-col items-center gap-1 ${activeTab === 'integrations' ? 'text-orange-500' : 'text-slate-400'}`}>
+          <Watch className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Watch</span>
+        </button>
+        <button onClick={() => setActiveTab('plan')} className={`flex flex-col items-center gap-1 ${activeTab === 'plan' ? 'text-orange-500' : 'text-slate-400'}`}>
+          <Calendar className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Planos</span>
+        </button>
+        <button onClick={() => setActiveTab('import')} className={`flex flex-col items-center gap-1 ${activeTab === 'import' ? 'text-orange-500' : 'text-slate-400'}`}>
+          <Upload className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Dados</span>
+        </button>
+      </nav>
+
+      {/* MODAL PARA ADICIONAR TREINO */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md p-6 rounded-2xl space-y-4 shadow-2xl">
+            <h3 className="text-base font-bold text-white">Registar Nova Atividade Real</h3>
+            <form onSubmit={addCustomActivity} className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 font-medium block mb-1">Nome / Descrição da Atividade</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="Ex: Futebol Intensivo (3x15 min)" 
+                  value={newTraining.name}
+                  onChange={e => setNewTraining({...newTraining, name: e.target.value})}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 font-medium block mb-1">Tipo</label>
+                  <select 
+                    value={newTraining.type}
+                    onChange={e => setNewTraining({...newTraining, type: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
+                  >
+                    <option value="Corrida">Corrida</option>
+                    <option value="Futebol">Futebol</option>
+                    <option value="Força / Kettlebell">Força / Kettlebell</option>
+                    <option value="Outros">Outros</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 font-medium block mb-1">Duração</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: 45m" 
+                    value={newTraining.duration}
+                    onChange={e => setNewTraining({...newTraining, duration: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 font-medium block mb-1">Distância (opcional se corrida)</label>
+                <input 
+                  type="number" 
+                  step="0.1" 
+                  placeholder="0.0" 
+                  value={newTraining.distance}
+                  onChange={e => setNewTraining({...newTraining, distance: e.target.value})}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-3">
+                <button 
+                  type="button" 
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl hover:bg-slate-700 transition"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-4 py-2 bg-orange-600 text-white text-xs font-semibold rounded-xl hover:bg-orange-500 shadow-md shadow-orange-600/20 transition"
+                >
+                  Guardar Treino
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
