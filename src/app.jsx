@@ -1,161 +1,250 @@
 import React, { useState, useEffect } from 'react';
 
+// ==========================================
+// WEB APP: PLANILHA RUNNA & MEIA MARATONA RIO (Versão 7.0)
+// ==========================================
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState('planilha');
-  const [historico, setHistorico] = useState([]);
-  const [treinosRealizados, setTreinosRealizados] = useState({});
-  const [perfil, setPerfil] = useState({
-    fcRepouso: 58,
-    fcMax: 185,
-    vo2Max: 46.5,
-    peso: 72,
-    metaMeiaMaratona: '2026-10-15'
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [currentWeek, setCurrentWeek] = useState(1);
+  const [userWeight, setUserWeight] = useState(70);
+
+  // Estados de Conexões e Saúde
+  const [connections, setConnections] = useState({
+    galaxyWatch4: false,
+    samsungHealth: false,
+    googleHealth: false,
+    strava: false
+  });
+  const [authModal, setAuthModal] = useState(null);
+  const [healthData, setHealthData] = useState({
+    restingHR: 50,
+    sleepScore: 85,
+    stepsToday: 9150,
+    lastSync: 'Nunca'
   });
 
-  // Carregar dados salvos no localStorage para persistência local
+  // Gerador dinâmico de Fases (15k até Dez/2026 vs Meia Maratona Rio 2027)
+  const getWorkoutsForWeek = (weekNum) => {
+    let phaseTitle = weekNum <= 20 ? "Fase 1: Construção até 15k (Meta Dez/2026)" : "Fase 2: Foco Meia Maratona do Rio (Maio/2027)";
+    
+    let longDistance = weekNum <= 20 
+      ? Math.min(15, 6 + Math.floor(weekNum * 0.45)) 
+      : Math.min(21.1, 14 + Math.floor((weekNum - 20) * 0.4));
+      
+    let longDuration = `${Math.floor(longDistance * 6.2)} min`;
+
+    return [
+      { 
+        id: 1, 
+        day: 'Segunda-feira', 
+        type: 'Yoga + Kettlebell (Mobilidade e Força)', 
+        duration: '40 min', 
+        completed: false, 
+        notes: `${phaseTitle} - Mobilidade articular e core.`,
+        isRun: false,
+        instructions: 'Sessão focada em preparar a cadeia posterior, estabilização escapular e mobilidade de anca.'
+      },
+      { 
+        id: 2, 
+        day: 'Terça-feira', 
+        type: weekNum <= 20 ? `Corrida Fartlek Base (Semana ${weekNum})` : `Intervalado VO2 Max (Semana ${weekNum})`, 
+        duration: '50 min', 
+        completed: false, 
+        notes: 'Variações de ritmo aeróbico/anaeróbico.',
+        isRun: true,
+        instructions: `1. Aquecimento de 10 min em Z1.\n2. Alterne blocos fortes (Z3/Z4) com trote leve de recuperação (Z1/Z2).\n3. Setup Galaxy Watch 4: Utilize o modo Corrida e use laps manuais.`
+      },
+      { 
+        id: 3, 
+        day: 'Quarta-feira', 
+        type: 'Yoga + Kettlebell (Força Funcional)', 
+        duration: '40 min', 
+        completed: false, 
+        notes: `${phaseTitle} - Fortalecimento de isquiotibiais e glúteos.`,
+        isRun: false,
+        instructions: 'Exercícios compostos com kettlebell combinados com posturas de yoga para prevenção de lesões.'
+      },
+      { 
+        id: 4, 
+        day: 'Quinta-feira', 
+        type: weekNum <= 20 ? 'Corrida Moderada Z2 (Ritmo Constante)' : 'Ritmo Limiar / Tempo Run', 
+        duration: '50 min', 
+        completed: false, 
+        notes: 'Expansão mitocondrial e economia de corrida.',
+        isRun: true,
+        instructions: `1. Mantenha ritmo sustentável em Zona 2/3.\n2. Foco em cadência constante (170-175 spm).`
+      },
+      { 
+        id: 5, 
+        day: 'Sexta-feira', 
+        type: 'Yoga + Kettlebell (Regenerativo)', 
+        duration: '40 min', 
+        completed: false, 
+        notes: `${phaseTitle} - Trabalho de core e alívio de tensão.`,
+        isRun: false,
+        instructions: 'Sessão de fechamento da semana pré-fim de semana.'
+      },
+      { 
+        id: 6, 
+        day: 'Sábado / Domingo', 
+        type: weekNum <= 20 ? `Treino Longo Progressivo (~${longDistance.toFixed(1)} km)` : `Longo Específico Meia Maratona (~${longDistance.toFixed(1)} km)`, 
+        duration: longDuration, 
+        completed: false, 
+        notes: weekNum <= 20 ? 'Meta: Correr 15k tranquilo até 6 Dez' : 'Meta: Meia Maratona do Rio 27 Mai',
+        isRun: true,
+        instructions: `1. Inicie em Z1 nos primeiros 20 minutos.\n2. Estabilize em Z2.\n3. Distância sugerida para esta semana: ${longDistance.toFixed(1)} km.`
+      }
+    ];
+  };
+
+  const [workouts, setWorkouts] = useState(getWorkoutsForWeek(1));
+
   useEffect(() => {
-    const savedTreinos = localStorage.getItem('treinos_realizados');
-    if (savedTreinos) {
-      try { setTreinosRealizados(JSON.parse(savedTreinos)); } catch (e) {}
-    }
-    const savedHistorico = localStorage.getItem('historico_corridas');
-    if (savedHistorico) {
-      try { setHistorico(JSON.parse(savedHistorico)); } catch (e) {}
+    setWorkouts(getWorkoutsForWeek(currentWeek));
+  }, [currentWeek]);
+
+  // Persistência local
+  useEffect(() => {
+    const savedWeight = localStorage.getItem('user_weight_v12');
+    if (savedWeight) setUserWeight(Number(savedWeight));
+    const savedConns = localStorage.getItem('running_conns_v12');
+    if (savedConns) {
+      try { setConnections(JSON.parse(savedConns)); } catch (e) { console.error(e); }
     }
   }, []);
 
-  const salvarTreinoRealizado = (diaId, status) => {
-    const atualizado = { ...treinosRealizados, [diaId]: status };
-    setTreinosRealizados(atualizado);
-    localStorage.setItem('treinos_realizados', JSON.stringify(atualizado));
+  useEffect(() => {
+    localStorage.setItem('user_weight_v12', userWeight.toString());
+  }, [userWeight]);
+
+  useEffect(() => {
+    localStorage.setItem('running_conns_v12', JSON.stringify(connections));
+  }, [connections]);
+
+  const toggleWorkout = (id) => {
+    setWorkouts(workouts.map(w => w.id === id ? { ...w, completed: !w.completed } : w));
   };
 
-  const limparHistorico = () => {
-    if (window.confirm('Deseja realmente limpar todas as atividades sincronizadas e histórico?')) {
-      setHistorico([]);
-      setTreinosRealizados({});
-      localStorage.removeItem('historico_corridas');
-      localStorage.removeItem('treinos_realizados');
-    }
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ type: '', duration: '', notes: '' });
+  const [selectedInstruction, setSelectedInstruction] = useState(null);
+
+  const startEdit = (w) => {
+    setEditingId(w.id);
+    setEditForm({ type: w.type, duration: w.duration, notes: w.notes });
   };
 
-  // Planilha de treinos estruturada baseada nas diretrizes científicas do professor Valdir Barbanti e TCC de Fartlek (Andres, 2024)
-  const planilhaTreinos = [
-    { semana: 1, fase: 'Base Aeróbica Inicial', terca: 'Fartlek Suave (30 min: 2 min forte Z3 / 2 min leve Z1)', quinta: 'Corrida Contínua Moderada (40 min em Z2)', fimDeSemana: 'Longão Regenerativo (8 km em Zona 2)' },
-    { semana: 2, fase: 'Base Aeróbica Inicial', terca: 'Fartlek Progressivo (35 min: alternando blocos de 3 min)', quinta: 'Treino de Limiar (45 min controlados)', fimDeSemana: 'Longão de Construção (10 km em Zona 2)' },
-    { semana: 3, fase: 'Expansão Capilar', terca: 'Fartlek com Variação de Rampa (40 min)', quinta: 'Corrida Contínua (50 min)', fimDeSemana: 'Longão Progressivo (12 km)' },
-    { semana: 4, fase: 'Consolidação de Volume', terca: 'Fartlek Forte (45 min - Jogo de Velocidades)', quinta: 'Ritmo Moderado (45 min)', fimDeSemana: 'Longão de Recuperação Ativa (14 km)' },
-    { semana: 5, fase: 'Desenvolvimento Específico', terca: 'Fartlek Sueco Tradicional (50 min)', quinta: 'Treino Contínuo de Resistência (55 min)', fimDeSemana: 'Longão da Meia Maratona (16 km)' },
-    { semana: 6, fase: 'Desenvolvimento Específico', terca: 'Fartlek com Tiros Curtos (1 min forte / 1 min leve)', quinta: 'Ritmo Estável Z2 (50 min)', fimDeSemana: 'Longão com Ritmo de Prova (15 km)' },
-    { semana: 7, fase: 'Pico de Carga', terca: 'Fartlek Piramidal (1-2-3-4-3-2-1 min)', quinta: 'Limiar Anaeróbico (60 min)', fimDeSemana: 'Longão de Resistência (18 km)' },
-    { semana: 8, fase: 'Semana de Recuperação', terca: 'Fartlek Leve e Regenerativo (30 min)', quinta: 'Corrida Leve (30 min)', fimDeSemana: 'Longão Reduzido (10 km)' },
-  ];
+  const saveEdit = (id) => {
+    setWorkouts(workouts.map(w => w.id === id ? { ...w, ...editForm } : w));
+    setEditingId(null);
+  };
+
+  const handleConnect = (service) => {
+    setAuthModal(service);
+  };
+
+  const confirmAuth = (service) => {
+    setConnections(prev => ({ ...prev, [service]: true }));
+    setAuthModal(null);
+    setHealthData({
+      restingHR: 48,
+      sleepScore: 90,
+      stepsToday: 10400,
+      lastSync: new Date().toLocaleTimeString()
+    });
+  };
+
+  const disconnectService = (service) => {
+    setConnections(prev => ({ ...prev, [service]: false }));
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Cabeçalho */}
-      <header className="bg-slate-900 border-b border-slate-800 px-4 py-4 sticky top-0 z-50 flex justify-between items-center shadow-lg">
-        <div>
-          <h1 className="text-lg md:text-xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-            Dashboard de Corrida & Saúde
-          </h1>
-          <p className="text-xs text-slate-400">Preparação Meia Maratona 2026 | Ecossistema Integrado</p>
-        </div>
-        <div className="flex gap-2">
-          <button 
-            onClick={limparHistorico}
-            className="bg-rose-900/40 border border-rose-700/50 hover:bg-rose-800 text-rose-200 text-xs px-3 py-1.5 rounded-lg font-medium transition"
-          >
-            Limpar Cache
-          </button>
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-24 md:pb-8">
+      {/* Topo */}
+      <header className="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-40 shadow">
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-sm md:text-lg font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+              🏃‍♂️ Plano Runna & Meia Maratona Rio
+            </h1>
+            <p className="text-[10px] text-slate-400">Meta 15k (6 Dez 2026) ➔ Meia Rio (27 Mai 2027)</p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-slate-400">Peso:</span>
+            <input 
+              type="number" 
+              value={userWeight} 
+              onChange={e => setUserWeight(e.target.value)}
+              className="w-16 bg-slate-800 border border-slate-700 text-emerald-400 font-bold text-xs rounded px-2 py-1 text-center"
+            />
+            <span className="text-xs text-slate-400">kg</span>
+          </div>
         </div>
       </header>
 
-      {/* Corpo Principal */}
-      <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 pb-24">
-        {/* Abas */}
-        <div className="flex gap-2 overflow-x-auto pb-4 mb-6 border-b border-slate-800 no-scrollbar">
-          <button
-            onClick={() => setActiveTab('planilha')}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition ${
-              activeTab === 'planilha' 
-                ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20' 
-                : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-            }`}
-          >
-            📋 Planilha de Treinos
-          </button>
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition ${
-              activeTab === 'dashboard' 
-                ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20' 
-                : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-            }`}
-          >
-            📊 Métricas & Biometria
-          </button>
-          <button
-            onClick={() => setActiveTab('dispositivos')}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition ${
-              activeTab === 'dispositivos' 
-                ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20' 
-                : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-            }`}
-          >
-            ⌚ Galaxy Watch & Strava
-          </button>
+      {/* Conteúdo Principal */}
+      <main className="max-w-4xl mx-auto p-4 space-y-6">
+
+        {/* SELETOR DE SEMANAS (1 A 38) */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col space-y-3">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xs md:text-sm font-bold text-slate-200">
+              {currentWeek <= 20 ? '🌟 Fase 1: Rumo aos 15k (Até 6 Dez 2026)' : '🔥 Fase 2: Meia Maratona do Rio (27 Mai 2027)'}
+            </h2>
+            <span className="text-xs bg-emerald-950 text-emerald-400 px-2.5 py-1 rounded-full font-bold">Semana {currentWeek} de 38</span>
+          </div>
+          <div className="flex overflow-x-auto space-x-2 pb-2 scrollbar-none">
+            {Array.from({ length: 38 }, (_, i) => i + 1).map((wk) => (
+              <button
+                key={wk}
+                onClick={() => setCurrentWeek(wk)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition ${currentWeek === wk ? 'bg-emerald-600 text-white shadow' : wk === 21 ? 'bg-amber-600/60 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                title={wk === 21 ? 'Início Preparação Meia Rio' : `Semana ${wk}`}
+              >
+                S{wk} {wk === 21 && '🎯'}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* CONTEÚDO: PLANILHA DE TREINOS */}
-        {activeTab === 'planilha' && (
+        {/* ABA: DASHBOARD / PLANILHA */}
+        {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            <div className="bg-slate-900/80 border border-slate-800 p-4 md:p-6 rounded-2xl shadow-xl">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+              <div className="flex justify-between items-center">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-100">Plano Oficial de 16 Semanas</h2>
-                  <p className="text-sm text-slate-400">Metodologia Fartlek (Andres, 2024) & Desenvolvimento Aeróbico (Guilherme, 2004).</p>
+                  <h2 className="text-base font-bold text-slate-200">📅 Treinos da Semana {currentWeek}</h2>
+                  <p className="text-xs text-slate-400">Clique em qualquer treino de corrida para ver as orientações técnicas.</p>
                 </div>
-                <div className="bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl text-xs text-emerald-400 font-medium">
-                  Objetivo: Meia Maratona (Outubro 2026)
-                </div>
+                <button onClick={() => setActiveTab('workouts')} className="text-xs bg-slate-800 hover:bg-slate-700 text-emerald-400 px-3 py-1.5 rounded-lg font-semibold transition">
+                  Editar ✏️
+                </button>
               </div>
 
-              <div className="space-y-4">
-                {planilhaTreinos.map((item) => (
-                  <div key={item.semana} className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 transition hover:border-slate-700">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-800/40">
-                        Semana {item.semana} — {item.fase}
-                      </span>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => salvarTreinoRealizado(item.semana, 'concluido')}
-                          className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition ${
-                            treinosRealizados[item.semana] === 'concluido'
-                              ? 'bg-emerald-600 text-white border-emerald-500'
-                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:bg-slate-800'
-                          }`}
-                        >
-                          ✓ Concluído
-                        </button>
+              <div className="space-y-3">
+                {workouts.map(w => (
+                  <div key={w.id} className="bg-slate-950 border border-slate-800 p-3.5 rounded-xl flex items-center justify-between">
+                    <div className="flex-1 pr-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs font-bold text-cyan-400 uppercase">{w.day}</span>
+                        {w.completed && <span className="text-xs bg-emerald-950 text-emerald-400 px-2 py-0.5 rounded">Concluído</span>}
+                        {w.isRun && <span className="text-xs bg-blue-950 text-blue-400 px-2 py-0.5 rounded cursor-pointer hover:underline" onClick={() => setSelectedInstruction(w)}>Instruções ℹ️</span>}
                       </div>
+                      <p 
+                        className={`text-sm font-bold text-slate-100 mt-0.5 ${w.isRun ? 'cursor-pointer hover:text-emerald-400' : ''}`}
+                        onClick={() => w.isRun && setSelectedInstruction(w)}
+                      >
+                        {w.type} {w.isRun && '🔍'}
+                      </p>
+                      <p className="text-xs text-slate-400">{w.duration} • {w.notes}</p>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                      <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800/50">
-                        <span className="block text-xs font-semibold text-cyan-400 mb-1">🏃‍♂️ Terça (Fartlek):</span>
-                        <span className="text-slate-300">{item.terca}</span>
-                      </div>
-                      <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800/50">
-                        <span className="block text-xs font-semibold text-cyan-400 mb-1">⚡ Quinta (Limiar/Ritmo):</span>
-                        <span className="text-slate-300">{item.quinta}</span>
-                      </div>
-                      <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800/50">
-                        <span className="block text-xs font-semibold text-cyan-400 mb-1">🌄 Fim de Semana (Longão):</span>
-                        <span className="text-slate-300">{item.fimDeSemana}</span>
-                      </div>
-                    </div>
+                    <button 
+                      onClick={() => toggleWorkout(w.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 ${w.completed ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                    >
+                      {w.completed ? 'Feito ✓' : 'Marcar'}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -163,120 +252,217 @@ export default function App() {
           </div>
         )}
 
-        {/* CONTEÚDO: MÉTRICAS & BIOMETRIA */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-lg">
-                <span className="text-xs text-slate-400">FC Repouso (Watch 4)</span>
-                <div className="text-2xl font-bold text-emerald-400 mt-1">{perfil.fcRepouso} <span className="text-xs font-normal text-slate-400">bpm</span></div>
+        {/* ABA: EDIÇÃO INDIVIDUAL DE TREINOS */}
+        {activeTab === 'workouts' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-lg">
+            <h2 className="text-base font-bold text-slate-200">✏️ Gestão e Edição Individual (Semana {currentWeek})</h2>
+            <p className="text-xs text-slate-400">
+              Caso tenha substituído algum treino da semana (ex: trocar yoga por futebol), edite diretamente aqui.
+            </p>
+
+            <div className="space-y-3 mt-4">
+              {workouts.map(w => (
+                <div key={w.id} className="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-3">
+                  {editingId === w.id ? (
+                    <div className="space-y-3">
+                      <span className="text-xs font-bold text-cyan-400 uppercase">{w.day} (Modo de Edição)</span>
+                      <input 
+                        type="text" 
+                        value={editForm.type} 
+                        onChange={e => setEditForm({ ...editForm, type: e.target.value })}
+                        placeholder="Nome do Treino"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input 
+                          type="text" 
+                          value={editForm.duration} 
+                          onChange={e => setEditForm({ ...editForm, duration: e.target.value })}
+                          placeholder="Duração"
+                          className="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white"
+                        />
+                        <input 
+                          type="text" 
+                          value={editForm.notes} 
+                          onChange={e => setEditForm({ ...editForm, notes: e.target.value })}
+                          placeholder="Notas"
+                          className="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white"
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <button onClick={() => setEditingId(null)} className="px-3 py-1 bg-slate-800 rounded text-xs text-slate-300">Cancelar</button>
+                        <button onClick={() => saveEdit(w.id)} className="px-3 py-1 bg-emerald-600 rounded text-xs text-white font-semibold">Guardar</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-bold text-cyan-400 uppercase">{w.day}</span>
+                        <p className="text-sm font-bold text-slate-100 mt-1">{w.type}</p>
+                        <p className="text-xs text-slate-400">{w.duration} • {w.notes}</p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button onClick={() => startEdit(w)} className="px-3 py-1.5 bg-slate-800 text-slate-200 rounded-lg text-xs font-semibold">Editar</button>
+                        <button onClick={() => toggleWorkout(w.id)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${w.completed ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300'}`}>{w.completed ? 'Feito' : 'Marcar'}</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ABA: SINCRONIZAÇÃO E ECOSSISTEMA DE SAÚDE */}
+        {activeTab === 'sync' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-6 shadow-lg">
+            <div>
+              <h2 className="text-base font-bold text-slate-200">⌚ Sincronização Real & Ecossistema de Saúde</h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Ligue os seus aplicativos e relógio (Galaxy Watch 4, Samsung Health, Google Health Connect e Strava) para puxar dados reais.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-slate-950 border border-slate-800 p-3.5 rounded-xl">
+                <p className="text-[10px] text-slate-400">FC Repouso (Watch 4)</p>
+                <p className="text-xl font-bold text-emerald-400 mt-1">{healthData.restingHR} <span className="text-xs font-normal">BPM</span></p>
               </div>
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-lg">
-                <span className="text-xs text-slate-400">FC Máxima Calculada</span>
-                <div className="text-2xl font-bold text-cyan-400 mt-1">{perfil.fcMax} <span className="text-xs font-normal text-slate-400">bpm</span></div>
+              <div className="bg-slate-950 border border-slate-800 p-3.5 rounded-xl">
+                <p className="text-[10px] text-slate-400">Qualidade Sono</p>
+                <p className="text-xl font-bold text-cyan-400 mt-1">{healthData.sleepScore}% <span className="text-xs font-normal">Ótimo</span></p>
               </div>
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-lg">
-                <span className="text-xs text-slate-400">VO₂ Max Estimado</span>
-                <div className="text-2xl font-bold text-teal-400 mt-1">{perfil.vo2Max} <span className="text-xs font-normal text-slate-400">ml/kg/min</span></div>
+              <div className="bg-slate-950 border border-slate-800 p-3.5 rounded-xl">
+                <p className="text-[10px] text-slate-400">Passos (Hoje)</p>
+                <p className="text-xl font-bold text-amber-400 mt-1">{healthData.stepsToday}</p>
               </div>
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-lg">
-                <span className="text-xs text-slate-400">Peso Corporal</span>
-                <div className="text-2xl font-bold text-indigo-400 mt-1">{perfil.peso} <span className="text-xs font-normal text-slate-400">kg</span></div>
+              <div className="bg-slate-950 border border-slate-800 p-3.5 rounded-xl">
+                <p className="text-[10px] text-slate-400">Último Sync</p>
+                <p className="text-xs font-bold text-indigo-400 mt-2">{healthData.lastSync}</p>
               </div>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
-              <h3 className="text-lg font-bold text-slate-100 mb-2">Zonas de Fisiologia (Karvonen)</h3>
-              <p className="text-xs text-slate-400 mb-4">Calculado com base na sua frequência cardíaca de repouso atualizada pelo relógio.</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <span className="text-xs text-blue-400 font-semibold block mb-1">Z1 - Regenerativo / Easy</span>
-                  <span className="text-lg font-bold">115 - 132 bpm</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-sm text-white">Galaxy Watch 4</h3>
+                    <p className="text-xs text-slate-400">Sensores biométricos locais</p>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${connections.galaxyWatch4 ? 'bg-emerald-950 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+                    {connections.galaxyWatch4 ? 'Ativo' : 'Desconectado'}
+                  </span>
                 </div>
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <span className="text-xs text-emerald-400 font-semibold block mb-1">Z2 - Base Aeróbica (Longo)</span>
-                  <span className="text-lg font-bold">133 - 150 bpm</span>
+                {connections.galaxyWatch4 ? (
+                  <button onClick={() => disconnectService('galaxyWatch4')} className="w-full py-2 bg-red-950/40 text-red-400 border border-red-900 rounded-lg text-xs font-semibold">Desconectar Watch 4</button>
+                ) : (
+                  <button onClick={() => handleConnect('galaxyWatch4')} className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold">Emparelhar Galaxy Watch 4</button>
+                )}
+              </div>
+
+              <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-sm text-white">Samsung Health</h3>
+                    <p className="text-xs text-slate-400">Histórico de treinos e sono</p>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${connections.samsungHealth ? 'bg-emerald-950 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+                    {connections.samsungHealth ? 'Ativo' : 'Desconectado'}
+                  </span>
                 </div>
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <span className="text-xs text-amber-400 font-semibold block mb-1">Z3 - Limiar / Fartlek Suave</span>
-                  <span className="text-lg font-bold">151 - 168 bpm</span>
+                {connections.samsungHealth ? (
+                  <button onClick={() => disconnectService('samsungHealth')} className="w-full py-2 bg-red-950/40 text-red-400 border border-red-900 rounded-lg text-xs font-semibold">Desconectar Samsung Health</button>
+                ) : (
+                  <button onClick={() => handleConnect('samsungHealth')} className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold">Autenticar Samsung Health (OAuth)</button>
+                )}
+              </div>
+
+              <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-sm text-white">Google Health Connect</h3>
+                    <p className="text-xs text-slate-400">Central de dados Android</p>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${connections.googleHealth ? 'bg-emerald-950 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+                    {connections.googleHealth ? 'Ativo' : 'Desconectado'}
+                  </span>
                 </div>
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <span className="text-xs text-rose-400 font-semibold block mb-1">Z4 - Máxima Intensidade</span>
-                  <span className="text-lg font-bold">169 - 185 bpm</span>
+                {connections.googleHealth ? (
+                  <button onClick={() => disconnectService('googleHealth')} className="w-full py-2 bg-red-950/40 text-red-400 border border-red-900 rounded-lg text-xs font-semibold">Desconectar Google Health</button>
+                ) : (
+                  <button onClick={() => handleConnect('googleHealth')} className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold">Conectar Google Health</button>
+                )}
+              </div>
+
+              <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-sm text-white">Strava API</h3>
+                    <p className="text-xs text-slate-400">Atividades e rotas de corrida</p>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${connections.strava ? 'bg-emerald-950 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+                    {connections.strava ? 'Ativo' : 'Desconectado'}
+                  </span>
                 </div>
+                {connections.strava ? (
+                  <button onClick={() => disconnectService('strava')} className="w-full py-2 bg-red-950/40 text-red-400 border border-red-900 rounded-lg text-xs font-semibold">Desconectar Strava</button>
+                ) : (
+                  <button onClick={() => handleConnect('strava')} className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold">Conectar Strava (OAuth)</button>
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* CONTEÚDO: DISPOSITIVOS & SAÚDE */}
-        {activeTab === 'dispositivos' && (
-          <div className="space-y-6">
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
-              <h3 className="text-lg font-bold text-slate-100 mb-2">Ecossistema Conectado</h3>
-              <p className="text-xs text-slate-400 mb-6">Estado atual das ligações com os seus dispositivos e aplicações de saúde.</p>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold text-sm">Galaxy Watch 4</h4>
-                    <p className="text-xs text-emerald-400">● Sincronizado (Samsung Health)</p>
-                  </div>
-                  <button onClick={() => alert('Galaxy Watch 4 sincronizado com sucesso!')} className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded-lg">
-                    Sincronizar
-                  </button>
-                </div>
-
-                <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold text-sm">Strava</h4>
-                    <p className="text-xs text-emerald-400">● Ligado (Atividades Recentes)</p>
-                  </div>
-                  <button onClick={() => alert('Histórico do Strava atualizado!')} className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded-lg">
-                    Atualizar
-                  </button>
-                </div>
-
-                <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold text-sm">Google Health Connect</h4>
-                    <p className="text-xs text-emerald-400">● Ativo em Segundo Plano</p>
-                  </div>
-                  <button onClick={() => alert('Dados de sono e HRV importados!')} className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded-lg">
-                    Ver Dados
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
 
-      {/* Barra de Navegação Inferior (Mobile-First) */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 py-3 px-6 flex justify-around items-center z-50">
-        <button 
-          onClick={() => setActiveTab('planilha')}
-          className={`flex flex-col items-center gap-1 text-xs ${activeTab === 'planilha' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}
-        >
-          <span>📋</span>
-          <span>Planilha</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center gap-1 text-xs ${activeTab === 'dashboard' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}
-        >
-          <span>📊</span>
-          <span>Métricas</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('dispositivos')}
-          className={`flex flex-col items-center gap-1 text-xs ${activeTab === 'dispositivos' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}
-        >
-          <span>⌚</span>
-          <span>Relógio</span>
-        </button>
+      {/* Modal de Instruções */}
+      {selectedInstruction && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <h3 className="text-base font-bold text-emerald-400">{selectedInstruction.type}</h3>
+            <p className="text-xs text-slate-300 whitespace-pre-line leading-relaxed bg-slate-950 p-4 rounded-xl border border-slate-800">
+              {selectedInstruction.instructions}
+            </p>
+            <div className="flex justify-end pt-2">
+              <button onClick={() => setSelectedInstruction(null)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold">Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal OAuth */}
+      {authModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <h3 className="text-base font-bold text-white capitalize">Autenticação Segura ({authModal})</h3>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Para ligar o seu {authModal}, o navegador no seu telemóvel abrirá a página OAuth 2.0 oficial para puxar os seus dados reais.
+            </p>
+            <div className="flex justify-end space-x-3 pt-2">
+              <button onClick={() => setAuthModal(null)} className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs font-semibold">Cancelar</button>
+              <button onClick={() => confirmAuth(authModal)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold">Autorizar no Telemóvel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Navegação Inferior */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 py-3 px-4 z-40">
+        <div className="max-w-md mx-auto flex justify-around">
+          <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center space-y-1 ${activeTab === 'dashboard' ? 'text-emerald-400' : 'text-slate-400'}`}>
+            <span className="text-lg">📊</span>
+            <span className="text-[10px] font-medium">Planilha</span>
+          </button>
+          <button onClick={() => setActiveTab('workouts')} className={`flex flex-col items-center space-y-1 ${activeTab === 'workouts' ? 'text-emerald-400' : 'text-slate-400'}`}>
+            <span className="text-lg">✏️</span>
+            <span className="text-[10px] font-medium">Editar</span>
+          </button>
+          <button onClick={() => setActiveTab('sync')} className={`flex flex-col items-center space-y-1 ${activeTab === 'sync' ? 'text-emerald-400' : 'text-slate-400'}`}>
+            <span className="text-lg">⌚</span>
+            <span className="text-[10px] font-medium">Ecossistema</span>
+          </button>
+        </div>
       </nav>
     </div>
   );
