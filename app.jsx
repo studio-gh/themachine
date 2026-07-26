@@ -1,18 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 // ==========================================
-// THE MACHINE: PREMIUM HEALTH HUB v8.1
-// ==========================================
-
-export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [currentWeek, setCurrentWeek] = useState(1);
-  const [userWeight, setUserWeight] = useState(70);
-
-import React, { useState, useEffect } from 'react';
-
-// ==========================================
-// WEB APP: PLANILHA RUNNA & MEIA MARATONA RIO (Versão 7.0)
+// THE MACHINE: HUB DE PERFORMANCE (Versão 8.5 - App.jsx Nativo)
 // ==========================================
 
 export default function App() {
@@ -74,7 +63,7 @@ export default function App() {
         completed: false, 
         notes: `${phaseTitle} - Fortalecimento de isquiotibiais e glúteos.`,
         isRun: false,
-        instructions: 'Exercícios compostos com kettlebell combinados com posturas de yoga para prevenção de lesões.'
+        instructions: 'Exercícios compostos com kettlebell combinados com posturas de yoga para prevenção de lesões. (Nota: Se jogou futebol, use a aba "Editar" para atualizar este registo!)'
       },
       { 
         id: 4, 
@@ -330,7 +319,7 @@ export default function App() {
             <div>
               <h2 className="text-base font-bold text-slate-200">⌚ Sincronização Real & Ecossistema de Saúde</h2>
               <p className="text-xs text-slate-400 mt-1">
-                Ligue os seus aplicativos e relógio (Galaxy Watch 4, Samsung Health, Google Health Connect e Strava) para puxar dados reais.
+                Ligue os seus aplicativos e relógio (Galaxy Watch 4, Samsung Health, Google Health Connect e Strava) para puxar dados reais via OAuth no telemóvel.
               </p>
             </div>
 
@@ -448,7 +437,7 @@ export default function App() {
           <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <h3 className="text-base font-bold text-white capitalize">Autenticação Segura ({authModal})</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Para ligar o seu {authModal}, o navegador no seu telemóvel abrirá a página OAuth 2.0 oficial para puxar os seus dados reais.
+              Para ligar o seu {authModal}, o navegador no seu telemóvel abrirá a página OAuth 2.0 oficial para puxar os seus dados reais de biometria e treinos.
             </p>
             <div className="flex justify-end space-x-3 pt-2">
               <button onClick={() => setAuthModal(null)} className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs font-semibold">Cancelar</button>
@@ -475,16 +464,6 @@ export default function App() {
           </button>
         </div>
       </nav>
-    </div>
-  );
-}
-  
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-6">
-       {/* UI Estilo Jarvis aqui */}
-       <div className="max-w-4xl mx-auto">
-          {/* Dashboard Premium */}
-       </div>
     </div>
   );
 }
