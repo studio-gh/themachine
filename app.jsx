@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
 
 // ==========================================
+// THE MACHINE: PREMIUM HEALTH HUB v8.1
+// ==========================================
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [currentWeek, setCurrentWeek] = useState(1);
+  const [userWeight, setUserWeight] = useState(70);
+
+import React, { useState, useEffect } from 'react';
+
+// ==========================================
 // WEB APP: PLANILHA RUNNA & MEIA MARATONA RIO (Versão 7.0)
 // ==========================================
 
@@ -464,6 +475,16 @@ export default function App() {
           </button>
         </div>
       </nav>
+    </div>
+  );
+}
+  
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-6">
+       {/* UI Estilo Jarvis aqui */}
+       <div className="max-w-4xl mx-auto">
+          {/* Dashboard Premium */}
+       </div>
     </div>
   );
 }
