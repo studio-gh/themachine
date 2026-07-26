@@ -4,13 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Corrida</title>
+    <!-- React e Babel via CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950">
+<body class="bg-slate-950 text-slate-100">
     <div id="root"></div>
-    <script type="text/babel" src="src/App.jsx"></script>
+
+    <script type="text/babel">
+        // Cole aqui todo o conteúdo do seu App.jsx, 
+        // mas remova a linha "export default function App() {" 
+        // e use apenas "function App() {" e no final "root.render(<App />);"
+        
+        // Exemplo simplificado de montagem:
+        function App() {
+            return (
+                <div className="p-10 text-center">
+                    <h1 className="text-2xl font-bold text-emerald-400">Dashboard Carregado com Sucesso!</h1>
+                    <p className="mt-4">O seu plano está a funcionar diretamente no index.html.</p>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
 </body>
 </html>
