@@ -61,8 +61,9 @@ export default function App() {
     strava: { status: 'Desconectado', lastSync: 'Nunca', activitiesCount: 0 }
   });
 
+  // Atualizado para v7 para forçar a limpeza de cache local do utilizador
   const [allWeeksData, setAllWeeksData] = useState(() => {
-    const saved = localStorage.getItem('treinos_ciclo_completo_v6');
+    const saved = localStorage.getItem('treinos_ciclo_completo_v7');
     if (saved) {
       try { return JSON.parse(saved); } catch(e) {}
     }
@@ -108,8 +109,9 @@ export default function App() {
   const [aiInsights, setAiInsights] = useState('');
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
 
+  // Atualizado para v7 para forçar a limpeza de cache
   const [activities, setActivities] = useState(() => {
-    const saved = localStorage.getItem('activities_real_v6');
+    const saved = localStorage.getItem('activities_real_v7');
     if (saved) {
       try { return JSON.parse(saved); } catch(e) {}
     }
@@ -117,11 +119,11 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('treinos_ciclo_completo_v6', JSON.stringify(allWeeksData));
+    localStorage.setItem('treinos_ciclo_completo_v7', JSON.stringify(allWeeksData));
   }, [allWeeksData]);
 
   useEffect(() => {
-    localStorage.setItem('activities_real_v6', JSON.stringify(activities));
+    localStorage.setItem('activities_real_v7', JSON.stringify(activities));
   }, [activities]);
 
   const handleConnect = (service) => {
@@ -494,7 +496,7 @@ export default function App() {
                   <h3 className="text-base font-bold text-slate-100">📁 Importador de Histórico (.CSV)</h3>
                   <p className="text-xs text-slate-400">Carregue o seu ficheiro activities.csv para calibrar automaticamente o seu ritmo.</p>
                 </div>
-                <button onClick={() => { setActivities([]); setAiInsights(''); localStorage.removeItem('activities_real_v6'); }} className="text-xs bg-red-950/80 hover:bg-red-900 text-red-300 px-3 py-1.5 rounded-lg border border-red-800">
+                <button onClick={() => { setActivities([]); setAiInsights(''); localStorage.removeItem('activities_real_v7'); }} className="text-xs bg-red-950/80 hover:bg-red-900 text-red-300 px-3 py-1.5 rounded-lg border border-red-800">
                   🗑️ Limpar Histórico
                 </button>
               </div>
