@@ -16,7 +16,7 @@ export default function App() {
 
   // Base completa de treinos por semana (Foco: Base até 15km Dez/2026 -> Meia Maratona Rio Maio/2027)
   const [allWeeksData, setAllWeeksData] = useState(() => {
-    const saved = localStorage.getItem('treinos_ciclo_completo_v4');
+    const saved = localStorage.getItem('treinos_ciclo_completo_v5');
     if (saved) {
       try { return JSON.parse(saved); } catch(e) {}
     }
@@ -31,21 +31,21 @@ export default function App() {
         { id: 107, dia: 'Domingo', tipo: 'Descanso Total', status: 'Concluído', desc: 'Recuperação neuromuscular absoluta e hidratação.' }
       ],
       2: [
-        { id: 201, dia: 'Segunda-feira', tipo: 'Força & Mobilidade', status: 'Pendente', desc: 'Yoga + Kettlebell (45 min): Foco em mobilidade de anca e estabilização do core.' },
-        { id: 202, dia: 'Terça-feira', tipo: 'Fartlek', status: 'Pendente', desc: 'Total: 7 km. Aquecimento 10 min Z1 + 6x (1 min forte sub-5:00/km + 2 min trote Z2) + 5 min arrefecimento.' },
+        { id: 201, dia: 'Segunda-feira', tipo: 'Força & Mobilidade', status: 'Pendente', desc: 'Yoga + Kettlebell (45 min) • Foco: Mobilidade de anca, estabilização do core e fortalecimento de cadeia posterior para prevenir lesões de joelho.' },
+        { id: 202, dia: 'Terça-feira', tipo: 'Fartlek (Jogo de Velocidades)', status: 'Pendente', desc: 'Total: 7 km. • Aquecimento: 10 min trote leve (Z1). • Bloco Principal (6x): 1 min forte (pace sub-5:00/km) + 2 min trote regenerativo (Z2). • Arrefecimento: 5 min trote leve / caminhada.' },
         { id: 203, dia: 'Quarta-feira', tipo: 'Força & Mobilidade', status: 'Concluído', desc: 'Substituído por 3 partidas intensas de futebol (15 min cada). Alta exigência neuromuscular.' },
-        { id: 204, dia: 'Quinta-feira', tipo: 'Corrida Moderada', status: 'Pendente', desc: 'Total: 6 km contínuos em Zona 2. Ritmo alvo estável entre 6:00 e 6:15/km.' },
-        { id: 205, dia: 'Sexta-feira', tipo: 'Força & Mobilidade', status: 'Pendente', desc: 'Yoga + Kettlebell (45 min): Liberação miofascial e recuperação ativa.' },
-        { id: 206, dia: 'Sábado', tipo: 'Treino Longo Progressivo', status: 'Pendente', desc: 'Total: 9 km. 3 km conservadores (6:30/km) + 4 km progressivos (6:10/km) + 2 km controlados.' },
+        { id: 204, dia: 'Quinta-feira', tipo: 'Corrida Moderada Contínua', status: 'Pendente', desc: 'Total: 6 km contínuos. • Ritmo Alvo: Manter um pace estável e confortável entre 6:00 e 6:15/km. • Regra de Ouro: Deve conseguir conversar frases curtas sem ficar sem ar.' },
+        { id: 205, dia: 'Sexta-feira', tipo: 'Força & Mobilidade', status: 'Pendente', desc: 'Yoga + Kettlebell (45 min) • Foco: Liberação miofascial e recuperação ativa para o fim de semana.' },
+        { id: 206, dia: 'Sábado', tipo: 'Treino Longo Progressivo', status: 'Pendente', desc: 'Total: 9 km. • Estrutura: Começar muito conservador nos primeiros 3 km (pace 6:30/km), progredir para 6:10/km do km 4 ao 7, e fechar os últimos 2 km num ritmo natural e controlado.' },
         { id: 207, dia: 'Domingo', tipo: 'Descanso Total', status: 'Pendente', desc: 'Recuperação neuromuscular absoluta, hidratação e sono de qualidade.' }
       ],
       3: [
-        { id: 301, dia: 'Segunda-feira', tipo: 'Força & Mobilidade', status: 'Pendente', desc: 'Yoga + Kettlebell (45 min): Fortalecimento de cadeia posterior.' },
-        { id: 302, dia: 'Terça-feira', tipo: 'Fartlek', status: 'Pendente', desc: 'Total: 7.5 km. Aquecimento 10 min + 7x (1 min forte + 2 min trote) + arrefecimento.' },
+        { id: 301, dia: 'Segunda-feira', tipo: 'Força & Mobilidade', status: 'Pendente', desc: 'Yoga + Kettlebell (45 min): Fortalecimento de cadeia posterior e estabilidade.' },
+        { id: 302, dia: 'Terça-feira', tipo: 'Fartlek', status: 'Pendente', desc: 'Total: 7.5 km. Aquecimento 10 min Z1 + 7x (1 min forte pace 4:55/km + 2 min trote Z2) + 5 min arrefecimento.' },
         { id: 303, dia: 'Quarta-feira', tipo: 'Força & Mobilidade', status: 'Pendente', desc: 'Yoga + Kettlebell (45 min): Core e estabilidade de joelhos.' },
-        { id: 304, dia: 'Quinta-feira', tipo: 'Corrida Moderada', status: 'Pendente', desc: 'Total: 6.5 km em Zona 2 contínua (pace 6:00/km).' },
+        { id: 304, dia: 'Quinta-feira', tipo: 'Corrida Moderada', status: 'Pendente', desc: 'Total: 6.5 km em Zona 2 contínua (pace 5:55 a 6:10/km).' },
         { id: 305, dia: 'Sexta-feira', tipo: 'Força & Mobilidade', status: 'Pendente', desc: 'Yoga + Kettlebell (45 min): Recuperação ativa.' },
-        { id: 306, dia: 'Sábado', tipo: 'Treino Longo', status: 'Pendente', desc: 'Total: 10 km em ritmo constante Zona 2 (pace 6:20/km).' },
+        { id: 306, dia: 'Sábado', tipo: 'Treino Longo', status: 'Pendente', desc: 'Total: 10 km em ritmo constante Zona 2 (pace 6:15/km).' },
         { id: 307, dia: 'Domingo', tipo: 'Descanso Total', status: 'Pendente', desc: 'Descanso e hidratação.' }
       ]
     };
@@ -58,7 +58,7 @@ export default function App() {
 
   // Histórico de Atividades Reais (Importadas CSV / Strava)
   const [activities, setActivities] = useState(() => {
-    const saved = localStorage.getItem('activities_real_v4');
+    const saved = localStorage.getItem('activities_real_v5');
     if (saved) {
       try { return JSON.parse(saved); } catch(e) {}
     }
@@ -67,11 +67,11 @@ export default function App() {
 
   // Persistência automática
   useEffect(() => {
-    localStorage.setItem('treinos_ciclo_completo_v4', JSON.stringify(allWeeksData));
+    localStorage.setItem('treinos_ciclo_completo_v5', JSON.stringify(allWeeksData));
   }, [allWeeksData]);
 
   useEffect(() => {
-    localStorage.setItem('activities_real_v4', JSON.stringify(activities));
+    localStorage.setItem('activities_real_v5', JSON.stringify(activities));
   }, [activities]);
 
   const handleConnect = (service) => {
@@ -200,6 +200,15 @@ export default function App() {
               </div>
             </div>
 
+            {/* Dica do Galaxy Watch 4 */}
+            <div className="bg-slate-900 border border-emerald-900/50 rounded-2xl p-4 shadow-lg text-xs space-y-2 text-slate-300">
+              <div className="flex items-center space-x-2 font-bold text-emerald-400">
+                <span>⌚ Como ler e aplicar os seus treinos no Galaxy Watch 4:</span>
+              </div>
+              <p>• <strong className="text-slate-200">Para os treinos contínuos (Quinta e Sábado):</strong> Configure no Samsung Health o ecrã de dados focado em <strong className="text-emerald-300">Pace Médio por Volta (Lap Pace)</strong> e mantenha-se estritamente na faixa indicada.</p>
+              <p>• <strong className="text-slate-200">Para o Fartlek de Terça-feira:</strong> Utilize o botão de <strong className="text-emerald-300">Lap manual</strong> do relógio para marcar a transição exata entre o minuto forte e a recuperação, garantindo que o seu gráfico de esforço fique limpo para análise posterior.</p>
+            </div>
+
             {/* Lista de Treinos da Semana Selecionada */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-6 shadow-lg">
               <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 pb-3 border-b border-slate-800 gap-2">
@@ -225,7 +234,7 @@ export default function App() {
                           {t.status}
                         </span>
                       </div>
-                      <p className="text-sm text-slate-300 mt-1">{t.desc}</p>
+                      <p className="text-sm text-slate-300 mt-1 whitespace-pre-line">{t.desc}</p>
                     </div>
 
                     <button 
@@ -415,7 +424,7 @@ export default function App() {
                   <p className="text-xs text-slate-400">Carregue o seu ficheiro activities.csv para calibrar automaticamente o seu ritmo.</p>
                 </div>
                 <button 
-                  onClick={() => { setActivities([]); localStorage.removeItem('activities_real_v4'); }}
+                  onClick={() => { setActivities([]); localStorage.removeItem('activities_real_v5'); }}
                   className="text-xs bg-red-950/80 hover:bg-red-900 text-red-300 px-3 py-1.5 rounded-lg border border-red-800">
                   🗑️ Limpar Histórico
                 </button>
@@ -467,7 +476,7 @@ export default function App() {
               <textarea 
                 value={editDesc} 
                 onChange={(e) => setEditDesc(e.target.value)}
-                rows={3}
+                rows={4}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
               />
             </div>
