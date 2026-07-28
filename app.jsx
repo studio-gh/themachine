@@ -1,22 +1,68 @@
 import React, { useState, useEffect } from 'react';
 
-export default function App() {
-  // Estado das Abas: 'planilha' | 'visaoGeral' | 'dashboard' | 'saude' | 'progresso'
-  const [activeTab, setActiveTab] = useState('planilha');
+// Chave da API fornecida em tempo de execução pelo ambiente
+const apiKey = "";
+
+// Função auxiliar para chamar a API do Gemini com Exponential Backoff
+const callGeminiAPI = async (prompt, isJson = false) => {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
   
-  // Semana selecionada para visualização detalhada (1 a 16)
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    systemInstruction: { 
+      parts: [{ text: "És um treinador de corrida de elite e fisiologista desportivo. Responde sempre em Português de Portugal (PT-PT) de forma encorajadora e científica." }] 
+    }
+  };
+
+  if (isJson) {
+    payload.generationConfig = { 
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          analise: { type: "STRING", description: "Breve explicação do impacto fisiológico (1-2 frases)" },
+          novaDescricao: { type: "STRING", description: "Nova descrição do treino adaptada" },
+          statusSugerido: { type: "STRING", description: "O estado do treino (Concluído ou Adaptado)" }
+        }
+      }
+    };
+  }
+
+  const delays = [1000, 2000, 4000, 8000, 16000];
+  for (let i = 0; i < 5; i++) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await response.json();
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!text) throw new Error("Resposta vazia da API");
+      
+      return isJson ? JSON.parse(text) : text;
+    } catch (error) {
+      if (i === 4) throw error; // Última tentativa falhou
+      await new Promise(res => setTimeout(res, delays[i]));
+    }
+  }
+};
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('planilha');
   const [selectedSemana, setSelectedSemana] = useState(2);
 
-  // Estado de Conexões Reais / Simuladas do Ecossistema
   const [connections, setConnections] = useState({
     galaxyWatch: { status: 'Desconectado', lastSync: 'Nunca', rhr: 54, hrv: 68, sleep: '7h 40m' },
     samsungHealth: { status: 'Desconectado', lastSync: 'Nunca' },
     strava: { status: 'Desconectado', lastSync: 'Nunca', activitiesCount: 0 }
   });
 
-  // Base completa de treinos por semana (Foco: Base até 15km Dez/2026 -> Meia Maratona Rio Maio/2027)
   const [allWeeksData, setAllWeeksData] = useState(() => {
-    const saved = localStorage.getItem('treinos_ciclo_completo_v5');
+    const saved = localStorage.getItem('treinos_ciclo_completo_v6');
     if (saved) {
       try { return JSON.parse(saved); } catch(e) {}
     }
@@ -51,27 +97,31 @@ export default function App() {
     };
   });
 
-  // Estado para Edição de Treino
   const [editingTreino, setEditingTreino] = useState(null);
   const [editDesc, setEditDesc] = useState('');
   const [editStatus, setEditStatus] = useState('Pendente');
+  
+  // Estados para integrações Gemini
+  const [isAdapting, setIsAdapting] = useState(false);
+  const [aiError, setAiError] = useState('');
+  
+  const [aiInsights, setAiInsights] = useState('');
+  const [isLoadingInsights, setIsLoadingInsights] = useState(false);
 
-  // Histórico de Atividades Reais (Importadas CSV / Strava)
   const [activities, setActivities] = useState(() => {
-    const saved = localStorage.getItem('activities_real_v5');
+    const saved = localStorage.getItem('activities_real_v6');
     if (saved) {
       try { return JSON.parse(saved); } catch(e) {}
     }
     return [];
   });
 
-  // Persistência automática
   useEffect(() => {
-    localStorage.setItem('treinos_ciclo_completo_v5', JSON.stringify(allWeeksData));
+    localStorage.setItem('treinos_ciclo_completo_v6', JSON.stringify(allWeeksData));
   }, [allWeeksData]);
 
   useEffect(() => {
-    localStorage.setItem('activities_real_v5', JSON.stringify(activities));
+    localStorage.setItem('activities_real_v6', JSON.stringify(activities));
   }, [activities]);
 
   const handleConnect = (service) => {
@@ -121,6 +171,54 @@ export default function App() {
       [selectedSemana]: updatedList
     }));
     setEditingTreino(null);
+    setAiError('');
+  };
+
+  // Funcionalidade Gemini 1: Adaptador Inteligente de Treino
+  const handleAIAdaptation = async () => {
+    if (!editDesc.trim()) {
+      setAiError("Por favor, descreva o que fez ou o motivo da alteração primeiro.");
+      return;
+    }
+    
+    setIsAdapting(true);
+    setAiError('');
+    
+    try {
+      const prompt = `O atleta tinha o seguinte treino planeado: "${editingTreino.tipo} - ${editingTreino.desc}".
+      No entanto, ele inseriu o seguinte relato/alteração: "${editDesc}".
+      Analisa o impacto desta alteração com base na ciência do treino desportivo (ex: substituição de carga aeróbica por anaeróbica, risco de lesão, impacto neuromuscular, etc).
+      Retorna as tuas sugestões de forma estruturada.`;
+
+      const result = await callGeminiAPI(prompt, true);
+      
+      if (result && result.novaDescricao) {
+        setEditDesc(`💡 Análise IA: ${result.analise}\n\nAdaptação Oficial: ${result.novaDescricao}`);
+        setEditStatus(result.statusSugerido || 'Adaptado');
+      }
+    } catch (e) {
+      console.error(e);
+      setAiError("A IA não conseguiu processar a adaptação neste momento. Tente novamente.");
+    }
+    setIsAdapting(false);
+  };
+
+  // Funcionalidade Gemini 2: Analisador de Histórico
+  const handleGenerateInsights = async () => {
+    if (activities.length === 0) return;
+    
+    setIsLoadingInsights(true);
+    try {
+      const activitiesSummary = activities.slice(0, 10).map(a => `${a.date}: ${a.name} - ${a.distance} ao ritmo de ${a.pace}`).join('\n');
+      const prompt = `Aqui estão as últimas atividades de corrida importadas pelo atleta (foco em consolidar base para 15km):\n${activitiesSummary}\n\nGera uma análise motivacional em 3 bullet points (usando emojis). Destaca a consistência, a evolução dos ritmos e dá uma sugestão rápida para a próxima semana.`;
+      
+      const result = await callGeminiAPI(prompt, false);
+      setAiInsights(result);
+    } catch (e) {
+      console.error(e);
+      setAiInsights("Não foi possível gerar os insights agora. Verifique a sua ligação.");
+    }
+    setIsLoadingInsights(false);
   };
 
   const currentTreinosList = allWeeksData[selectedSemana] || [
@@ -151,38 +249,16 @@ export default function App() {
         
         {/* Navegação por Abas */}
         <div className="hidden md:flex space-x-2 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
-          <button 
-            onClick={() => setActiveTab('planilha')}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${activeTab === 'planilha' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-            📅 Planilha por Semana
-          </button>
-          <button 
-            onClick={() => setActiveTab('visaoGeral')}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${activeTab === 'visaoGeral' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-            🗺️ Visão Geral até Dezembro
-          </button>
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-            ❤️ Biometria & Zonas
-          </button>
-          <button 
-            onClick={() => setActiveTab('saude')}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${activeTab === 'saude' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-            🔗 Ecossistema
-          </button>
-          <button 
-            onClick={() => setActiveTab('progresso')}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${activeTab === 'progresso' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-            📁 Histórico & CSV
-          </button>
+          <button onClick={() => setActiveTab('planilha')} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${activeTab === 'planilha' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>📅 Planilha por Semana</button>
+          <button onClick={() => setActiveTab('visaoGeral')} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${activeTab === 'visaoGeral' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>🗺️ Visão Geral até Dezembro</button>
+          <button onClick={() => setActiveTab('dashboard')} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>❤️ Biometria & Zonas</button>
+          <button onClick={() => setActiveTab('saude')} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${activeTab === 'saude' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>🔗 Ecossistema</button>
+          <button onClick={() => setActiveTab('progresso')} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${activeTab === 'progresso' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>📁 Histórico & CSV</button>
         </div>
 
-        {/* CONTEÚDO DA ABA: PLANILHA POR SEMANA */}
+        {/* ABA: PLANILHA POR SEMANA */}
         {activeTab === 'planilha' && (
           <div className="space-y-4">
-            
-            {/* Seletor de Semanas */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col md:flex-row items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-100">Selecione a Semana de Treino</h3>
@@ -190,17 +266,13 @@ export default function App() {
               </div>
               <div className="flex items-center space-x-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(sem => (
-                  <button
-                    key={sem}
-                    onClick={() => setSelectedSemana(sem)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${selectedSemana === sem ? 'bg-emerald-600 text-white shadow' : 'bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-white border border-slate-800'}`}>
+                  <button key={sem} onClick={() => setSelectedSemana(sem)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${selectedSemana === sem ? 'bg-emerald-600 text-white shadow' : 'bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-white border border-slate-800'}`}>
                     Semana {sem} {sem === 2 ? '⭐ (Atual)' : ''}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Dica do Galaxy Watch 4 */}
             <div className="bg-slate-900 border border-emerald-900/50 rounded-2xl p-4 shadow-lg text-xs space-y-2 text-slate-300">
               <div className="flex items-center space-x-2 font-bold text-emerald-400">
                 <span>⌚ Como ler e aplicar os seus treinos no Galaxy Watch 4:</span>
@@ -209,16 +281,13 @@ export default function App() {
               <p>• <strong className="text-slate-200">Para o Fartlek de Terça-feira:</strong> Utilize o botão de <strong className="text-emerald-300">Lap manual</strong> do relógio para marcar a transição exata entre o minuto forte e a recuperação, garantindo que o seu gráfico de esforço fique limpo para análise posterior.</p>
             </div>
 
-            {/* Lista de Treinos da Semana Selecionada */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-6 shadow-lg">
               <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 pb-3 border-b border-slate-800 gap-2">
                 <div>
                   <h2 className="text-lg font-bold text-slate-100">Periodização Oficial — Semana {selectedSemana}</h2>
                   <p className="text-xs text-slate-400">Instruções cirúrgicas, distâncias exatas e ritmos sem termos vagos.</p>
                 </div>
-                <div className="text-xs text-emerald-400 bg-emerald-950/50 px-3 py-1.5 rounded-lg border border-emerald-900/50">
-                  Relógio: Galaxy Watch 4 / Samsung Health
-                </div>
+                <div className="text-xs text-emerald-400 bg-emerald-950/50 px-3 py-1.5 rounded-lg border border-emerald-900/50">Relógio: Galaxy Watch 4 / Samsung Health</div>
               </div>
 
               <div className="space-y-3">
@@ -226,20 +295,16 @@ export default function App() {
                   <div key={t.id} className="bg-slate-950 border border-slate-800/80 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-slate-700 transition">
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded">
-                          {t.dia}
-                        </span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded">{t.dia}</span>
                         <span className="text-sm font-semibold text-slate-200">{t.tipo}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${t.status === 'Concluído' ? 'bg-emerald-900/50 text-emerald-300 border border-emerald-700' : 'bg-amber-950/50 text-amber-300 border border-amber-800/50'}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${t.status === 'Concluído' ? 'bg-emerald-900/50 text-emerald-300 border border-emerald-700' : t.status === 'Adaptado' ? 'bg-purple-900/50 text-purple-300 border border-purple-700' : 'bg-amber-950/50 text-amber-300 border border-amber-800/50'}`}>
                           {t.status}
                         </span>
                       </div>
                       <p className="text-sm text-slate-300 mt-1 whitespace-pre-line">{t.desc}</p>
                     </div>
 
-                    <button 
-                      onClick={() => { setEditingTreino(t); setEditDesc(t.desc); setEditStatus(t.status); }}
-                      className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg font-medium transition self-end md:self-center">
+                    <button onClick={() => { setEditingTreino(t); setEditDesc(t.desc); setEditStatus(t.status); setAiError(''); }} className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg font-medium transition self-end md:self-center">
                       ✏️ Editar / Adaptar
                     </button>
                   </div>
@@ -249,7 +314,7 @@ export default function App() {
           </div>
         )}
 
-        {/* CONTEÚDO DA ABA: VISÃO GERAL ATÉ DEZEMBRO */}
+        {/* ABA: VISÃO GERAL */}
         {activeTab === 'visaoGeral' && (
           <div className="space-y-4">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
@@ -290,7 +355,7 @@ export default function App() {
           </div>
         )}
 
-        {/* CONTEÚDO DA ABA: DASHBOARD & BIOMETRIA */}
+        {/* ABA: DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -316,7 +381,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Zonas de Treino (Karvonen) */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
               <h3 className="text-base font-bold text-slate-100 mb-3">⚡ As Suas Zonas de Esforço Atuais</h3>
               <div className="space-y-3 text-sm">
@@ -346,7 +410,7 @@ export default function App() {
           </div>
         )}
 
-        {/* CONTEÚDO DA ABA: ECOSSISTEMA */}
+        {/* ABA: SAÚDE (ECOSSISTEMA) */}
         {activeTab === 'saude' && (
           <div className="space-y-4">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
@@ -354,89 +418,89 @@ export default function App() {
               <p className="text-xs text-slate-400">Autentique e sincronize os seus dados biométricos reais diretamente para o seu painel.</p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                
                 <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-4">
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-sm">⌚ Galaxy Watch 4</span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${connections.galaxyWatch.status === 'Conectado' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}`}>
-                        {connections.galaxyWatch.status}
-                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${connections.galaxyWatch.status === 'Conectado' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}`}>{connections.galaxyWatch.status}</span>
                     </div>
                     <p className="text-xs text-slate-400 mt-2">Samsung Health / Health Connect</p>
                     <p className="text-xs text-slate-500 mt-1">Última sync: {connections.galaxyWatch.lastSync}</p>
                   </div>
-                  <button 
-                    onClick={() => handleConnect('galaxyWatch')}
-                    className="w-full bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs py-2 rounded-lg font-semibold transition border border-slate-700">
-                    Sincronizar Relógio
-                  </button>
+                  <button onClick={() => handleConnect('galaxyWatch')} className="w-full bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs py-2 rounded-lg font-semibold transition border border-slate-700">Sincronizar Relógio</button>
                 </div>
 
                 <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-4">
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-sm">🟠 Strava API</span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${connections.strava.status === 'Conectado' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}`}>
-                        {connections.strava.status}
-                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${connections.strava.status === 'Conectado' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}`}>{connections.strava.status}</span>
                     </div>
                     <p className="text-xs text-slate-400 mt-2">Atividades e Histórico de Corrida</p>
                     <p className="text-xs text-slate-500 mt-1">Atividades carregadas: {activities.length}</p>
                   </div>
-                  <button 
-                    onClick={() => handleConnect('strava')}
-                    className="w-full bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 text-xs py-2 rounded-lg font-semibold transition border border-orange-800/50">
-                    Conectar via OAuth
-                  </button>
+                  <button onClick={() => handleConnect('strava')} className="w-full bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 text-xs py-2 rounded-lg font-semibold transition border border-orange-800/50">Conectar via OAuth</button>
                 </div>
 
                 <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-4">
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-sm">💚 Google Health</span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${connections.samsungHealth.status === 'Conectado' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}`}>
-                        {connections.samsungHealth.status}
-                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${connections.samsungHealth.status === 'Conectado' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}`}>{connections.samsungHealth.status}</span>
                     </div>
                     <p className="text-xs text-slate-400 mt-2">Sono, Frequência Cardíaca e Passos</p>
                     <p className="text-xs text-slate-500 mt-1">Última sync: {connections.samsungHealth.lastSync}</p>
                   </div>
-                  <button 
-                    onClick={() => handleConnect('samsungHealth')}
-                    className="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs py-2 rounded-lg font-semibold transition border border-emerald-800/50">
-                    Ligar Health Connect
-                  </button>
+                  <button onClick={() => handleConnect('samsungHealth')} className="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs py-2 rounded-lg font-semibold transition border border-emerald-800/50">Ligar Health Connect</button>
                 </div>
-
               </div>
             </div>
           </div>
         )}
 
-        {/* CONTEÚDO DA ABA: HISTÓRICO & CSV */}
+        {/* ABA: HISTÓRICO & CSV COM GEMINI INSIGHTS */}
         {activeTab === 'progresso' && (
           <div className="space-y-4">
+            
+            {/* Secção IA: Insights de Treino */}
+            {activities.length > 0 && (
+              <div className="bg-gradient-to-r from-emerald-900/40 to-slate-900 border border-emerald-800/50 rounded-2xl p-6 shadow-lg space-y-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <h3 className="text-base font-bold text-emerald-400 flex items-center">
+                      <span className="mr-2">✨</span> Analisador de Progresso (IA)
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">Deixe a inteligência artificial analisar os seus ritmos recentes e dar-lhe conselhos de treinador.</p>
+                  </div>
+                  <button 
+                    onClick={handleGenerateInsights}
+                    disabled={isLoadingInsights}
+                    className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs px-4 py-2 rounded-lg font-semibold transition flex items-center">
+                    {isLoadingInsights ? 'A analisar...' : '✨ Gerar Insights'}
+                  </button>
+                </div>
+                
+                {aiInsights && (
+                  <div className="bg-slate-950/80 p-4 rounded-xl border border-emerald-900/30 text-sm text-slate-200 whitespace-pre-line leading-relaxed">
+                    {aiInsights}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                 <div>
                   <h3 className="text-base font-bold text-slate-100">📁 Importador de Histórico (.CSV)</h3>
                   <p className="text-xs text-slate-400">Carregue o seu ficheiro activities.csv para calibrar automaticamente o seu ritmo.</p>
                 </div>
-                <button 
-                  onClick={() => { setActivities([]); localStorage.removeItem('activities_real_v5'); }}
-                  className="text-xs bg-red-950/80 hover:bg-red-900 text-red-300 px-3 py-1.5 rounded-lg border border-red-800">
+                <button onClick={() => { setActivities([]); setAiInsights(''); localStorage.removeItem('activities_real_v6'); }} className="text-xs bg-red-950/80 hover:bg-red-900 text-red-300 px-3 py-1.5 rounded-lg border border-red-800">
                   🗑️ Limpar Histórico
                 </button>
               </div>
 
               <div className="border-2 border-dashed border-slate-800 rounded-xl p-6 text-center bg-slate-950">
-                <input 
-                  type="file" 
-                  accept=".csv" 
-                  onChange={handleFileUpload} 
-                  className="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer"
-                />
+                <input type="file" accept=".csv" onChange={handleFileUpload} className="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer"/>
                 <p className="text-xs text-slate-500 mt-2">Selecione o seu ficheiro .csv exportado do Strava</p>
               </div>
 
@@ -465,24 +529,31 @@ export default function App() {
 
       </main>
 
-      {/* MODAL DE EDIÇÃO DE TREINO */}
+      {/* MODAL DE EDIÇÃO DE TREINO COM IA */}
       {editingTreino && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
             <h3 className="text-lg font-bold text-slate-100">Editar Treino: {editingTreino.dia} (Semana {selectedSemana})</h3>
             
+            {aiError && (
+              <div className="bg-red-950/50 border border-red-900 text-red-400 text-xs p-3 rounded-lg">
+                {aiError}
+              </div>
+            )}
+
             <div className="space-y-2">
-              <label className="text-xs font-medium text-slate-400">Instruções / Relato (Ex: Substituição por futebol):</label>
+              <label className="text-xs font-medium text-slate-400">O que aconteceu? (Escreva a alteração ou substituição):</label>
               <textarea 
                 value={editDesc} 
                 onChange={(e) => setEditDesc(e.target.value)}
+                placeholder="Ex: Joguei 3 partidas de futebol em vez de fazer o yoga."
                 rows={4}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-medium text-slate-400">Estado:</label>
+              <label className="text-xs font-medium text-slate-400">Estado Atual:</label>
               <select 
                 value={editStatus} 
                 onChange={(e) => setEditStatus(e.target.value)}
@@ -493,17 +564,23 @@ export default function App() {
               </select>
             </div>
 
-            <div className="flex space-x-3 pt-2">
+            <div className="flex flex-col space-y-3 pt-2">
+              {/* Botão de Integração Gemini */}
               <button 
-                onClick={() => setEditingTreino(null)}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 rounded-xl text-sm font-medium transition">
-                Cancelar
+                onClick={handleAIAdaptation}
+                disabled={isAdapting}
+                className="w-full bg-indigo-900/40 hover:bg-indigo-900/60 border border-indigo-700/50 text-indigo-300 py-2.5 rounded-xl text-sm font-semibold transition flex justify-center items-center">
+                {isAdapting ? 'A processar adaptação científica...' : '✨ Adaptar Treino com IA'}
               </button>
-              <button 
-                onClick={saveTreinoEdit}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-sm font-semibold transition">
-                Guardar Alteração
-              </button>
+
+              <div className="flex space-x-3">
+                <button onClick={() => { setEditingTreino(null); setAiError(''); }} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 rounded-xl text-sm font-medium transition">
+                  Cancelar
+                </button>
+                <button onClick={saveTreinoEdit} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-sm font-semibold transition">
+                  Guardar
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -511,36 +588,11 @@ export default function App() {
 
       {/* Barra de Navegação Inferior (Mobile-First) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 flex justify-around py-3 z-40 text-xs">
-        <button 
-          onClick={() => setActiveTab('planilha')}
-          className={`flex flex-col items-center space-y-1 ${activeTab === 'planilha' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}>
-          <span className="text-lg">📅</span>
-          <span>Semanas</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('visaoGeral')}
-          className={`flex flex-col items-center space-y-1 ${activeTab === 'visaoGeral' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}>
-          <span className="text-lg">🗺️</span>
-          <span>Geral</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center space-y-1 ${activeTab === 'dashboard' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}>
-          <span className="text-lg">❤️</span>
-          <span>Biometria</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('saude')}
-          className={`flex flex-col items-center space-y-1 ${activeTab === 'saude' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}>
-          <span className="text-lg">🔗</span>
-          <span>Ecossistema</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('progresso')}
-          className={`flex flex-col items-center space-y-1 ${activeTab === 'progresso' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}>
-          <span className="text-lg">📁</span>
-          <span>Histórico</span>
-        </button>
+        <button onClick={() => setActiveTab('planilha')} className={`flex flex-col items-center space-y-1 ${activeTab === 'planilha' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}><span className="text-lg">📅</span><span>Semanas</span></button>
+        <button onClick={() => setActiveTab('visaoGeral')} className={`flex flex-col items-center space-y-1 ${activeTab === 'visaoGeral' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}><span className="text-lg">🗺️</span><span>Geral</span></button>
+        <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center space-y-1 ${activeTab === 'dashboard' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}><span className="text-lg">❤️</span><span>Biometria</span></button>
+        <button onClick={() => setActiveTab('saude')} className={`flex flex-col items-center space-y-1 ${activeTab === 'saude' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}><span className="text-lg">🔗</span><span>Conexões</span></button>
+        <button onClick={() => setActiveTab('progresso')} className={`flex flex-col items-center space-y-1 ${activeTab === 'progresso' ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}><span className="text-lg">📁</span><span>Histórico</span></button>
       </nav>
 
     </div>
